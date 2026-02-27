@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function StatusReportPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [features, setFeatures] = useState([]);
@@ -50,12 +52,20 @@ export default function StatusReportPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 style={{ fontSize: 22 }}>Status Report</h2>
-        <select style={{ minWidth: 220 }} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
-          <option value="">Todos os projetos</option>
-          {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({p.client})</option>)}
-        </select>
+      <div className="page-header" style={{ marginBottom: 24 }}>
+        <div>
+          <h2 className="page-title">Status Report</h2>
+          <p className="page-subtitle">Visão executiva dos projetos e features.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select style={{ minWidth: 220 }} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+            <option value="">Todos os projetos</option>
+            {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({p.client})</option>)}
+          </select>
+          <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
+            ← Voltar
+          </button>
+        </div>
       </div>
 
       {loading ? <div className="card"><p>Carregando...</p></div> :

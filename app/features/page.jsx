@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function FeaturesPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [features, setFeatures] = useState([]);
@@ -71,7 +73,15 @@ export default function FeaturesPage() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, marginBottom: 16 }}>Features</h2>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Features</h2>
+          <p className="page-subtitle">Cadastre, lance horas e acompanhe o progresso.</p>
+        </div>
+        <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
+          ← Voltar
+        </button>
+      </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cadastrar feature</h3>

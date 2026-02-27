@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function PeoplePage() {
+  const router = useRouter();
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,7 +42,15 @@ export default function PeoplePage() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, marginBottom: 16 }}>Pessoas</h2>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Pessoas</h2>
+          <p className="page-subtitle">Cadastre os membros dos times e suas funções.</p>
+        </div>
+        <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
+          ← Voltar
+        </button>
+      </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cadastrar pessoa</h3>

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function TeamsPage() {
+  const router = useRouter();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,7 +40,15 @@ export default function TeamsPage() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, marginBottom: 16 }}>Times</h2>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Times</h2>
+          <p className="page-subtitle">Agrupe pessoas por squads, chapters ou áreas.</p>
+        </div>
+        <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
+          ← Voltar
+        </button>
+      </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cadastrar time</h3>

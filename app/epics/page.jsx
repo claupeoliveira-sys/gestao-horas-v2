@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function EpicsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,15 @@ export default function EpicsPage() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, marginBottom: 16 }}>Épicos</h2>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Épicos</h2>
+          <p className="page-subtitle">Organize grandes blocos de trabalho por projeto.</p>
+        </div>
+        <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
+          ← Voltar
+        </button>
+      </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cadastrar épico</h3>

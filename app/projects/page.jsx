@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -45,7 +47,15 @@ export default function ProjectsPage() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, marginBottom: 16 }}>Projetos</h2>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Projetos</h2>
+          <p className="page-subtitle">Cadastre e acompanhe os projetos ativos.</p>
+        </div>
+        <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
+          ← Voltar
+        </button>
+      </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cadastrar novo projeto</h3>
