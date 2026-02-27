@@ -3,22 +3,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const LOG_SOURCE_LABELS = {
+  email: 'E-mail',
+  meeting: 'Reunião',
+  status_report: 'Reunião de Status Report',
+};
+
 export default function StatusReportPage() {
   const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [features, setFeatures] = useState([]);
+  const [projectLogs, setProjectLogs] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [loading, setLoading] = useState(true);
+  const [logForms, setLogForms] = useState({});
+  const [savingLog, setSavingLog] = useState(null);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [pRes, eRes, fRes] = await Promise.all([
-        fetch('/api/projects'), fetch('/api/epics'), fetch('/api/features'),
+      const [pRes, eRes, fRes, logsRes] = await Promise.all([
+        fetch('/api/projects'),
+        fetch('/api/epics'),
+        fetch('/api/features'),
+        fetch('/api/project-logs'),
       ]);
-      const [p, e, f] = await Promise.all([pRes.json(), eRes.json(), fRes.json()]);
-      setProjects(p); setEpics(e); setFeatures(f);
+      const [p, e, f, logs] = await Promise.all([
+        pRes.json(),
+        eRes.json(),
+        fRes.json(),
+        logsRes.json(),
+      ]);
+      setProjects(p);
+      setEpics(e);
+      setFeatures(f);
+      setProjectLogs(logs);
       setLoading(false);
     }
     load();
@@ -48,6 +68,59 @@ export default function StatusReportPage() {
       finished: <span className="badge badge-done">Concluído</span>,
     };
     return map[status] || null;
+  }
+
+  function getLogForm(projectId) {
+    return (
+      logForms[projectId] ?? {
+        date: new Date().toISOString().slice(0, 10),
+        source: 'status_report',
+        content: '',
+      }
+    );
+  }
+
+  function setLogForm(projectId, data) {
+    setLogForms((prev) => ({ ...prev, [projectId]: { ...getLogForm(projectId), ...data } }));
+  }
+
+  async function submitLog(projectId) {
+    const form = getLogForm(projectId);
+    if (!form.content.trim()) return;
+    setSavingLog(projectId);
+    await fetch('/api/project-logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectId,
+        date: form.date,
+        source: form.source,
+        content: form.content.trim(),
+      }),
+    });
+    const res = await fetch('/api/project-logs');
+    const logs = await res.json();
+    setProjectLogs(logs);
+    setLogForm(projectId, { date: new Date().toISOString().slice(0, 10), source: 'status_report', content: '' });
+    setSavingLog(null);
+  }
+
+  function logsForProject(projectId) {
+    return projectLogs.filter((l) => l.projectId === projectId);
+  }
+
+  function logSourceBadge(source) {
+    const cls =
+      source === 'status_report'
+        ? 'badge-done'
+        : source === 'meeting'
+          ? 'badge-paused'
+          : 'badge-active';
+    return (
+      <span className={`badge ${cls}`} style={{ fontSize: 11 }}>
+        {LOG_SOURCE_LABELS[source] || source}
+      </span>
+    );
   }
 
   return (
@@ -131,6 +204,79 @@ export default function StatusReportPage() {
                   })}
                 </tbody>
               </table>
+
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+                <h4 style={{ fontSize: 16, marginBottom: 12, color: 'var(--text-muted)' }}>
+                  Diário de bordo
+                </h4>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  Acordos, definições e anotações da agenda de status report (ou de e-mails e reuniões).
+                </p>
+                <div className="card" style={{ marginBottom: 16, padding: 16, background: 'var(--bg)' }}>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <div className="form-group" style={{ flex: '0 1 140px', marginBottom: 0 }}>
+                      <label style={{ fontSize: 12 }}>Data da anotação</label>
+                      <input
+                        type="date"
+                        value={getLogForm(p._id).date}
+                        onChange={(e) => setLogForm(p._id, { date: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: '0 1 200px', marginBottom: 0 }}>
+                      <label style={{ fontSize: 12 }}>Origem</label>
+                      <select
+                        value={getLogForm(p._id).source}
+                        onChange={(e) => setLogForm(p._id, { source: e.target.value })}
+                      >
+                        <option value="status_report">Reunião de Status Report</option>
+                        <option value="meeting">Reunião</option>
+                        <option value="email">E-mail</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 12 }}>Anotação / acordos / definições</label>
+                    <textarea
+                      rows={3}
+                      value={getLogForm(p._id).content}
+                      onChange={(e) => setLogForm(p._id, { content: e.target.value })}
+                      placeholder="Ex: Cliente aprovou escopo da fase 2. Próxima reunião em 15/03."
+                    />
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    disabled={savingLog === p._id || !getLogForm(p._id).content.trim()}
+                    onClick={() => submitLog(p._id)}
+                  >
+                    {savingLog === p._id ? 'Salvando...' : 'Incluir no diário'}
+                  </button>
+                </div>
+                {logsForProject(p._id).length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Nenhuma anotação ainda.</p>
+                ) : (
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {logsForProject(p._id).map((log) => (
+                      <li
+                        key={log._id}
+                        style={{
+                          padding: '12px 0',
+                          borderBottom: '1px solid var(--border)',
+                          fontSize: 14,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 13 }}>
+                            {log.date ? new Date(log.date).toLocaleDateString('pt-BR') : '—'}
+                          </span>
+                          {logSourceBadge(log.source)}
+                        </div>
+                        <div style={{ whiteSpace: 'pre-wrap' }}>{log.content}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           );
         })
