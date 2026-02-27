@@ -22,6 +22,9 @@ export default function RootLayout({ children }) {
               <Link href="/status-report" className="nav-link">Status Report</Link>
               <Link href="/people" className="nav-link">Pessoas</Link>
               <Link href="/teams" className="nav-link">Times</Link>
+              <Link href="/acompanhamento" className="nav-link">Acompanhamento</Link>
+              <Link href="/alocacoes" className="nav-link">Alocações</Link>
+              <Link href="/constatacoes" className="nav-link">Constatações</Link>
             </nav>
           </aside>
           <main className="main-content">

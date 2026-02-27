@@ -44,6 +44,24 @@ export default function Home() {
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de times</p>
           </div>
         </Link>
+        <Link href="/acompanhamento">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Acompanhamento</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Feedbacks e situações</p>
+          </div>
+        </Link>
+        <Link href="/alocacoes">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Alocações</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Colaborador x projeto</p>
+          </div>
+        </Link>
+        <Link href="/constatacoes">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Constatações</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Riscos, oportunidades e IA</p>
+          </div>
+        </Link>
       </div>
     </div>
   );
