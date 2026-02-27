@@ -7,7 +7,7 @@ export default function Home() {
       <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
         Selecione uma opção no menu lateral para começar.
       </p>
-      <div style={{ display: 'flex', gap: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
         <Link href="/projects">
           <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
             <p style={{ fontWeight: 600 }}>Projetos</p>
@@ -30,6 +30,18 @@ export default function Home() {
           <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
             <p style={{ fontWeight: 600 }}>Status Report</p>
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Visão executiva</p>
+          </div>
+        </Link>
+        <Link href="/people">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Pessoas</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de pessoas</p>
+          </div>
+        </Link>
+        <Link href="/teams">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Times</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de times</p>
           </div>
         </Link>
       </div>

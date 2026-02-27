@@ -15,10 +15,13 @@ export default function RootLayout({ children }) {
               Gestão de Horas
             </h1>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Link href="/" className="nav-link">Início</Link>
               <Link href="/projects" className="nav-link">Projetos</Link>
               <Link href="/epics" className="nav-link">Épicos</Link>
               <Link href="/features" className="nav-link">Features</Link>
               <Link href="/status-report" className="nav-link">Status Report</Link>
+              <Link href="/people" className="nav-link">Pessoas</Link>
+              <Link href="/teams" className="nav-link">Times</Link>
             </nav>
           </aside>
           <main className="main-content">
