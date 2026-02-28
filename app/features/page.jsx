@@ -212,7 +212,7 @@ export default function FeaturesPage() {
                     <tr>
                       <th>ID</th>
                       <th>Feature</th>
-                      <th>Analista(s)</th>
+                      <th>Pessoa(s)</th>
                       <th>Horas est.</th>
                       <th>Horas lanç.</th>
                       <th>Progresso</th>
@@ -310,7 +310,7 @@ export default function FeaturesPage() {
               />
             </div>
             <div className="form-group">
-              <label>Analista(s) — somente membros do projeto</label>
+              <label>Pessoa(s) — somente membros do projeto</label>
               <select
                 multiple
                 size={5}
@@ -420,7 +420,7 @@ export default function FeaturesPage() {
             />
           </div>
           <div className="form-group">
-            <label>Analista(s) — somente membros do projeto</label>
+            <label>Pessoa(s) — somente membros do projeto</label>
             <select
               multiple
               size={5}

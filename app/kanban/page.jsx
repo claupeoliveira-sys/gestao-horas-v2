@@ -215,7 +215,7 @@ export default function KanbanPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{f.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-                          Analista(s): {analystNames(f)}
+                          Pessoa(s): {analystNames(f)}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                           <span>Est.: {f.estimatedHours ?? 0}h</span>

@@ -24,13 +24,13 @@ export default function RootLayout({ children }) {
               <div className="nav-group-label">Operação</div>
               <Link href="/kanban" className="nav-link">Kanban</Link>
               <Link href="/status-report" className="nav-link">Status Report</Link>
-              <Link href="/trabalho-analista" className="nav-link">Trabalho por analista</Link>
+              <Link href="/trabalho-analista" className="nav-link">Tarefas por pessoa</Link>
               <div className="nav-group-label">Equipes</div>
               <Link href="/people" className="nav-link">Pessoas</Link>
               <Link href="/teams" className="nav-link">Times</Link>
               <div className="nav-group-label">Gestão</div>
               <Link href="/acompanhamento" className="nav-link">Acompanhamento</Link>
-              <Link href="/painel-analistas" className="nav-link">Painel Analistas</Link>
+              <Link href="/painel-analistas" className="nav-link">Painel de Pessoas</Link>
               <Link href="/alocacoes" className="nav-link">Alocações</Link>
               <Link href="/constatacoes" className="nav-link">Constatações</Link>
             </nav>

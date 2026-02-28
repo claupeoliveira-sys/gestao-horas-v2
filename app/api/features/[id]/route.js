@@ -26,7 +26,7 @@ export async function PUT(req, { params }) {
     const oldIds = (previous.analystIds || []).map((a) => String(a)).sort().join(',');
     const newIds = (body.analystIds || []).map((a) => String(a)).sort().join(',');
     if (oldIds !== newIds) {
-      historyEntries.push({ featureId: params.id, action: 'analysts_change', details: 'Alteração de analistas', oldValue: previous.analystIds, newValue: body.analystIds });
+      historyEntries.push({ featureId: params.id, action: 'analysts_change', details: 'Alteração de pessoas', oldValue: previous.analystIds, newValue: body.analystIds });
     }
   }
   if (historyEntries.length) await FeatureHistory.insertMany(historyEntries);

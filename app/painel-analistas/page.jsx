@@ -82,9 +82,9 @@ export default function PainelAnalistasPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">Painel de Analistas</h2>
+          <h2 className="page-title">Painel de Pessoas</h2>
           <p className="page-subtitle">
-            Projetos, tarefas e percentual de alocação por analista.
+            Projetos, tarefas e percentual de alocação por pessoa.
           </p>
         </div>
         <button className="btn btn-ghost" type="button" onClick={() => router.back()}>

@@ -86,9 +86,9 @@ export default function TrabalhoAnalistaPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">Trabalho em andamento por analista</h2>
+          <h2 className="page-title">Tarefas por pessoa</h2>
           <p className="page-subtitle">
-            Visão das tarefas atribuídas a cada analista (features em que o analista está vinculado).
+            Visão das tarefas atribuídas a cada pessoa (features em que a pessoa está vinculada).
           </p>
         </div>
         <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
@@ -98,13 +98,13 @@ export default function TrabalhoAnalistaPage() {
 
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
-          <label style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>Analista:</label>
+          <label style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>Pessoa:</label>
           <select
             value={selectedAnalyst}
             onChange={(e) => setSelectedAnalyst(e.target.value)}
             style={{ minWidth: 240 }}
           >
-            <option value="">Selecione um analista...</option>
+            <option value="">Selecione uma pessoa...</option>
             {people.map((p) => (
               <option key={p._id} value={p._id}>{p.name}</option>
             ))}
@@ -114,7 +114,7 @@ export default function TrabalhoAnalistaPage() {
         {loading ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : !selectedAnalyst ? (
-          <p style={{ color: 'var(--text-muted)' }}>Selecione um analista acima para ver as tarefas atribuídas.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Selecione uma pessoa acima para ver as tarefas atribuídas.</p>
         ) : (
           <>
             <div style={{ display: 'flex', gap: 24, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -194,7 +194,7 @@ export default function TrabalhoAnalistaPage() {
             )}
 
             {featuresByAnalyst.length === 0 && selectedAnalyst && (
-              <p style={{ color: 'var(--text-muted)' }}>Nenhuma feature atribuída a este analista. Atribua em <Link href="/features" style={{ color: 'var(--primary)' }}>Features</Link> (campo Analista(s)).</p>
+              <p style={{ color: 'var(--text-muted)' }}>Nenhuma feature atribuída a esta pessoa. Atribua em <Link href="/features" style={{ color: 'var(--primary)' }}>Features</Link> (campo Pessoa(s)).</p>
             )}
           </>
         )}
