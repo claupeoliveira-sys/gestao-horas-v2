@@ -26,6 +26,7 @@ export default function Home() {
   const [features, setFeatures] = useState([]);
   const [constatacoes, setConstatacoes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState('');
 
   useEffect(() => {
     if (pathname !== '/') return;
@@ -111,11 +112,20 @@ export default function Home() {
     return list;
   }
 
-  const activeProjects = projects.filter((p) => p.status === 'active');
-  const totalEstimated = features.reduce((s, f) => s + (Number(f.estimatedHours) || 0), 0);
-  const totalLogged = features.reduce((s, f) => s + (Number(f.loggedHours) || 0), 0);
-  const alerts = buildAlerts();
-  const risksCount = constatacoes.filter((c) => c.type === 'risk').length;
+  const filteredProjects = selectedProject
+    ? projects.filter((p) => p._id === selectedProject)
+    : projects;
+  const activeProjects = filteredProjects.filter((p) => p.status === 'active');
+  const totalEstimated = selectedProject
+    ? features.filter((f) => getProjectId(f.projectId) === selectedProject).reduce((s, f) => s + (Number(f.estimatedHours) || 0), 0)
+    : features.reduce((s, f) => s + (Number(f.estimatedHours) || 0), 0);
+  const totalLogged = selectedProject
+    ? features.filter((f) => getProjectId(f.projectId) === selectedProject).reduce((s, f) => s + (Number(f.loggedHours) || 0), 0)
+    : features.reduce((s, f) => s + (Number(f.loggedHours) || 0), 0);
+  const alertsFiltered = selectedProject ? buildAlerts().filter((a) => a.projectId === selectedProject) : buildAlerts();
+  const risksCount = selectedProject
+    ? constatacoes.filter((c) => (c.projectId && (typeof c.projectId === 'object' ? c.projectId._id : c.projectId) === selectedProject) && c.type === 'risk').length
+    : constatacoes.filter((c) => c.type === 'risk').length;
 
   return (
     <div>
@@ -148,21 +158,35 @@ export default function Home() {
         </div>
       ) : (
         <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>Projeto:</label>
+            <select
+              value={selectedProject}
+              onChange={(e) => setSelectedProject(e.target.value)}
+              style={{ minWidth: 220 }}
+            >
+              <option value="">Todos os projetos</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="dashboard-kpi">
             <div className="card">
               <div className="kpi-value">{activeProjects.length}</div>
-              <div className="kpi-label">Projetos ativos</div>
+              <div className="kpi-label">{selectedProject ? 'Projeto ativo' : 'Projetos ativos'}</div>
             </div>
             <div className="card">
               <div className="kpi-value">{totalEstimated.toFixed(0)}h</div>
-              <div className="kpi-label">Horas estimadas (total)</div>
+              <div className="kpi-label">Horas estimadas</div>
             </div>
             <div className="card">
               <div className="kpi-value">{totalLogged.toFixed(0)}h</div>
-              <div className="kpi-label">Horas realizadas (total)</div>
+              <div className="kpi-label">Horas realizadas</div>
             </div>
             <div className="card">
-              <div className="kpi-value">{alerts.length}</div>
+              <div className="kpi-value">{alertsFiltered.length}</div>
               <div className="kpi-label">Alertas</div>
             </div>
             <div className="card">
@@ -171,11 +195,11 @@ export default function Home() {
             </div>
           </div>
 
-          {alerts.length > 0 && (
+          {alertsFiltered.length > 0 && (
             <div className="card" style={{ marginBottom: 24 }}>
               <h3 style={{ fontSize: 18, marginBottom: 14 }}>Alertas</h3>
               <ul className="dashboard-alerts">
-                {alerts.slice(0, 15).map((a, i) => (
+                {alertsFiltered.slice(0, 15).map((a, i) => (
                   <li key={i} className={a.type === 'danger' ? 'alert-danger' : 'alert-warning'}>
                     <span className={`health-dot ${a.type === 'danger' ? 'red' : 'yellow'}`} />
                     <span><strong>{a.projectName}</strong> — {a.message}</span>
@@ -183,13 +207,13 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              {alerts.length > 15 && <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>+ {alerts.length - 15} alertas.</p>}
+              {alertsFiltered.length > 15 && <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>+ {alertsFiltered.length - 15} alertas.</p>}
             </div>
           )}
 
           <h3 style={{ fontSize: 16, marginBottom: 16, color: 'var(--text-muted)' }}>Saúde dos projetos</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-            {projects.map((p) => {
+            {filteredProjects.map((p) => {
               const m = projectMetrics(p._id);
               const health = projectHealth(p, m);
               return (
@@ -224,76 +248,6 @@ export default function Home() {
                 </Link>
               );
             })}
-          </div>
-
-          <h3 style={{ fontSize: 16, marginTop: 32, marginBottom: 16, color: 'var(--text-muted)' }}>Atalhos</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-            <Link href="/clients">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Clientes</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de clientes</p>
-              </div>
-            </Link>
-            <Link href="/projects">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Projetos</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastrar e listar</p>
-              </div>
-            </Link>
-            <Link href="/features">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Features</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastrar e editar</p>
-              </div>
-            </Link>
-            <Link href="/kanban">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Kanban</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Quadro de tarefas</p>
-              </div>
-            </Link>
-            <Link href="/status-report">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Status Report</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Visão executiva</p>
-              </div>
-            </Link>
-            <Link href="/painel-analistas">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Painel Analistas</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Projetos, tarefas e alocação</p>
-              </div>
-            </Link>
-            <Link href="/people">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Pessoas</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de pessoas</p>
-              </div>
-            </Link>
-            <Link href="/teams">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Times</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de times</p>
-              </div>
-            </Link>
-            <Link href="/acompanhamento">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Acompanhamento</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Feedbacks e situações</p>
-              </div>
-            </Link>
-            <Link href="/alocacoes">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Alocações</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Colaborador x projeto</p>
-              </div>
-            </Link>
-            <Link href="/constatacoes">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Constatações</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Riscos, oportunidades e IA</p>
-              </div>
-            </Link>
           </div>
         </>
       )}

@@ -11,6 +11,7 @@ export default function ProjectsPage() {
   const [people, setPeople] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -49,8 +50,14 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (pathname !== '/projects') return;
+    setDataLoaded(false);
+    setLoading(true);
     loadProjects();
   }, [pathname]);
+
+  useEffect(() => {
+    if (!loading && pathname === '/projects') setDataLoaded(true);
+  }, [loading, pathname]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -124,7 +131,7 @@ export default function ProjectsPage() {
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de projetos</h3>
-        {loading ? (
+        {(loading || !dataLoaded) ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : projects.length === 0 ? (
           <p>Nenhum projeto cadastrado. Use o botão abaixo para cadastrar um projeto.</p>

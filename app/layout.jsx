@@ -2,7 +2,7 @@ import './globals.css';
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Gestão de Horas',
+  title: 'ToolBOX OPS',
 };
 
 export default function RootLayout({ children }) {
@@ -12,7 +12,7 @@ export default function RootLayout({ children }) {
         <div className="layout">
           <aside className="sidebar">
             <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24 }}>
-              Gestão de Horas
+              ToolBOX OPS
             </h1>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Link href="/" className="nav-link">Início</Link>
