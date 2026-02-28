@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 const COLUMNS = [
@@ -14,6 +14,7 @@ const COLUMNS = [
 
 export default function KanbanPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [features, setFeatures] = useState([]);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
@@ -22,27 +23,36 @@ export default function KanbanPage() {
 
   async function loadFeatures() {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (selectedProject) params.append('projectId', selectedProject);
-    const res = await fetch('/api/features?' + params.toString());
-    const data = await res.json();
-    setFeatures(data);
-    setLoading(false);
+    try {
+      const params = new URLSearchParams();
+      if (selectedProject) params.append('projectId', selectedProject);
+      const res = await fetch('/api/features?' + params.toString());
+      const data = await res.json();
+      setFeatures(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function loadProjects() {
-    const res = await fetch('/api/projects');
-    const data = await res.json();
-    setProjects(data);
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      setProjects(data);
+    } catch (_) {
+      setProjects([]);
+    }
   }
 
   useEffect(() => {
+    if (pathname !== '/kanban') return;
     loadProjects();
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
+    if (pathname !== '/kanban') return;
     loadFeatures();
-  }, [selectedProject]);
+  }, [pathname, selectedProject]);
 
   function analystNames(f) {
     const ids = f.analystIds || [];

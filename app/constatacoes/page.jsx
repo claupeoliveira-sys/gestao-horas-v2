@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 const TIPOS = {
   observation: 'Observação',
@@ -12,6 +12,7 @@ const TIPOS = {
 
 export default function ConstatacoesPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [features, setFeatures] = useState([]);
@@ -49,12 +50,15 @@ export default function ConstatacoesPage() {
 
   async function loadConstatacoes() {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (filterProject) params.append('projectId', filterProject);
-    const res = await fetch('/api/constatacoes?' + params.toString());
-    const data = await res.json();
-    setConstatacoes(data);
-    setLoading(false);
+    try {
+      const params = new URLSearchParams();
+      if (filterProject) params.append('projectId', filterProject);
+      const res = await fetch('/api/constatacoes?' + params.toString());
+      const data = await res.json();
+      setConstatacoes(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -62,6 +66,14 @@ export default function ConstatacoesPage() {
     loadEpics();
     loadFeatures();
   }, []);
+
+  useEffect(() => {
+    if (pathname !== '/constatacoes') return;
+    loadProjects();
+    loadEpics();
+    loadFeatures();
+    loadConstatacoes();
+  }, [pathname]);
 
   useEffect(() => {
     loadConstatacoes();

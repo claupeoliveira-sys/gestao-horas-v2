@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function PeoplePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [people, setPeople] = useState([]);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,16 +20,20 @@ export default function PeoplePage() {
 
   async function loadPeople() {
     setLoading(true);
-    const [res, tRes] = await Promise.all([fetch('/api/people'), fetch('/api/teams')]);
-    const [data, teamsData] = await Promise.all([res.json(), tRes.json()]);
-    setPeople(data);
-    setTeams(teamsData);
-    setLoading(false);
+    try {
+      const [res, tRes] = await Promise.all([fetch('/api/people'), fetch('/api/teams')]);
+      const [data, teamsData] = await Promise.all([res.json(), tRes.json()]);
+      setPeople(data);
+      setTeams(teamsData);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
+    if (pathname !== '/people') return;
     loadPeople();
-  }, []);
+  }, [pathname]);
 
   async function handleSubmit(e) {
     e.preventDefault();

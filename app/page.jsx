@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from './components/LoadingSpinner';
 
@@ -14,21 +15,31 @@ function statusBadge(status) {
 }
 
 export default function Home() {
+  const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const [pRes, fRes] = await Promise.all([fetch('/api/projects'), fetch('/api/features')]);
-      const [p, f] = await Promise.all([pRes.json(), fRes.json()]);
-      setProjects(p);
-      setFeatures(f);
-      setLoading(false);
-    }
-    load();
-  }, []);
+    if (pathname !== '/') return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const [pRes, fRes] = await Promise.all([fetch('/api/projects'), fetch('/api/features')]);
+        const [p, f] = await Promise.all([pRes.json(), fRes.json()]);
+        if (!cancelled) {
+          setProjects(p);
+          setFeatures(f);
+        }
+      } catch (_) {
+        if (!cancelled) setProjects([]), setFeatures([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname]);
 
   function projectMetrics(projectId) {
     const list = features.filter((f) => f.projectId === projectId);

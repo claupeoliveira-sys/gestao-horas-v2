@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function EpicsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,14 +14,20 @@ export default function EpicsPage() {
 
   async function loadData() {
     setLoading(true);
-    const [pRes, eRes] = await Promise.all([fetch('/api/projects'), fetch('/api/epics')]);
-    const [p, e] = await Promise.all([pRes.json(), eRes.json()]);
-    setProjects(p);
-    setEpics(e);
-    setLoading(false);
+    try {
+      const [pRes, eRes] = await Promise.all([fetch('/api/projects'), fetch('/api/epics')]);
+      const [p, e] = await Promise.all([pRes.json(), eRes.json()]);
+      setProjects(p);
+      setEpics(e);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (pathname !== '/epics') return;
+    loadData();
+  }, [pathname]);
 
   async function handleSubmit(e) {
     e.preventDefault();

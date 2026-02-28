@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function FeaturesPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [people, setPeople] = useState([]);
@@ -30,15 +31,21 @@ export default function FeaturesPage() {
 
   async function loadFeatures(filters = {}) {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (filters.projectId) params.append('projectId', filters.projectId);
-    if (filters.epicId) params.append('epicId', filters.epicId);
-    const res = await fetch('/api/features?' + params.toString());
-    setFeatures(await res.json());
-    setLoading(false);
+    try {
+      const params = new URLSearchParams();
+      if (filters.projectId) params.append('projectId', filters.projectId);
+      if (filters.epicId) params.append('epicId', filters.epicId);
+      const res = await fetch('/api/features?' + params.toString());
+      setFeatures(await res.json());
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { loadBase().then(() => loadFeatures()); }, []);
+  useEffect(() => {
+    if (pathname !== '/features') return;
+    loadBase().then(() => loadFeatures({ projectId: selectedProject, epicId: selectedEpic }));
+  }, [pathname]);
   useEffect(() => { loadFeatures({ projectId: selectedProject, epicId: selectedEpic }); }, [selectedProject, selectedEpic]);
 
   useEffect(() => {

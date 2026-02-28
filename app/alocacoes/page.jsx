@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function AlocacoesPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [people, setPeople] = useState([]);
   const [projects, setProjects] = useState([]);
   const [allocations, setAllocations] = useState([]);
@@ -37,19 +38,29 @@ export default function AlocacoesPage() {
 
   async function loadAllocations() {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (filterPerson) params.append('personId', filterPerson);
-    if (filterProject) params.append('projectId', filterProject);
-    const res = await fetch('/api/allocations?' + params.toString());
-    const data = await res.json();
-    setAllocations(data);
-    setLoading(false);
+    try {
+      const params = new URLSearchParams();
+      if (filterPerson) params.append('personId', filterPerson);
+      if (filterProject) params.append('projectId', filterProject);
+      const res = await fetch('/api/allocations?' + params.toString());
+      const data = await res.json();
+      setAllocations(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     loadPeople();
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    if (pathname !== '/alocacoes') return;
+    loadPeople();
+    loadProjects();
+    loadAllocations();
+  }, [pathname]);
 
   useEffect(() => {
     loadAllocations();

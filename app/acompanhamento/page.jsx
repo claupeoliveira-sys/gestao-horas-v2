@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 const FEEDBACK_TYPES = {
   positive: 'Positivo',
@@ -12,6 +12,7 @@ const FEEDBACK_TYPES = {
 
 export default function AcompanhamentoPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [people, setPeople] = useState([]);
   const [projects, setProjects] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
@@ -41,18 +42,28 @@ export default function AcompanhamentoPage() {
 
   async function loadFeedbacks() {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (selectedPerson) params.append('personId', selectedPerson);
-    const res = await fetch('/api/feedbacks?' + params.toString());
-    const data = await res.json();
-    setFeedbacks(data);
-    setLoading(false);
+    try {
+      const params = new URLSearchParams();
+      if (selectedPerson) params.append('personId', selectedPerson);
+      const res = await fetch('/api/feedbacks?' + params.toString());
+      const data = await res.json();
+      setFeedbacks(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     loadPeople();
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    if (pathname !== '/acompanhamento') return;
+    loadPeople();
+    loadProjects();
+    loadFeedbacks();
+  }, [pathname]);
 
   useEffect(() => {
     loadFeedbacks();

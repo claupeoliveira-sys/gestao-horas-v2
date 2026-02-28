@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function ClientsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -18,15 +19,19 @@ export default function ClientsPage() {
 
   async function loadClients() {
     setLoading(true);
-    const res = await fetch('/api/clients');
-    const data = await res.json();
-    setClients(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/clients');
+      const data = await res.json();
+      setClients(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
+    if (pathname !== '/clients') return;
     loadClients();
-  }, []);
+  }, [pathname]);
 
   async function handleSubmit(e) {
     e.preventDefault();

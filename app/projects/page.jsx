@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function ProjectsPage() {
@@ -21,20 +21,23 @@ export default function ProjectsPage() {
 
   async function loadProjects() {
     setLoading(true);
-    const [pRes, peopleRes, clientsRes] = await Promise.all([
-      fetch('/api/projects'),
-      fetch('/api/people'),
-      fetch('/api/clients'),
-    ]);
-    const [data, peopleData, clientsData] = await Promise.all([
-      pRes.json(),
-      peopleRes.json(),
-      clientsRes.json(),
-    ]);
-    setProjects(data);
-    setPeople(peopleData);
-    setClients(clientsData);
-    setLoading(false);
+    try {
+      const [pRes, peopleRes, clientsRes] = await Promise.all([
+        fetch('/api/projects'),
+        fetch('/api/people'),
+        fetch('/api/clients'),
+      ]);
+      const [data, peopleData, clientsData] = await Promise.all([
+        pRes.json(),
+        peopleRes.json(),
+        clientsRes.json(),
+      ]);
+      setProjects(data);
+      setPeople(peopleData);
+      setClients(clientsData);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function clientName(p) {
@@ -42,7 +45,11 @@ export default function ProjectsPage() {
     return p.client || '—';
   }
 
-  useEffect(() => { loadProjects(); }, []);
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname !== '/projects') return;
+    loadProjects();
+  }, [pathname]);
 
   async function handleSubmit(e) {
     e.preventDefault();

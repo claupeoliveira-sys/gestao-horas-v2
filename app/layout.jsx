@@ -16,20 +16,21 @@ export default function RootLayout({ children }) {
             </h1>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Link href="/" className="nav-link">Início</Link>
-              <div className="nav-group-label">Projetos</div>
+              <div className="nav-group-label">Cadastros</div>
               <Link href="/clients" className="nav-link">Clientes</Link>
               <Link href="/projects" className="nav-link">Projetos</Link>
               <Link href="/epics" className="nav-link">Épicos</Link>
               <Link href="/features" className="nav-link">Features</Link>
+              <div className="nav-group-label">Operação</div>
               <Link href="/kanban" className="nav-link">Kanban</Link>
               <Link href="/status-report" className="nav-link">Status Report</Link>
-              <div className="nav-group-label">Pessoas e Times</div>
-              <Link href="/painel-analistas" className="nav-link">Painel Analistas</Link>
+              <div className="nav-group-label">Equipes</div>
               <Link href="/people" className="nav-link">Pessoas</Link>
               <Link href="/teams" className="nav-link">Times</Link>
+              <div className="nav-group-label">Gestão</div>
               <Link href="/acompanhamento" className="nav-link">Acompanhamento</Link>
+              <Link href="/painel-analistas" className="nav-link">Painel Analistas</Link>
               <Link href="/alocacoes" className="nav-link">Alocações</Link>
-              <div className="nav-group-label">Outros</div>
               <Link href="/constatacoes" className="nav-link">Constatações</Link>
             </nav>
           </aside>

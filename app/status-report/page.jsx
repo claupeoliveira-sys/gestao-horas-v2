@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 const LOG_SOURCE_LABELS = {
@@ -13,6 +13,7 @@ const LOG_SOURCE_LABELS = {
 function StatusReportContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [features, setFeatures] = useState([]);
@@ -29,31 +30,38 @@ function StatusReportContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const [pRes, eRes, fRes, logsRes, allocRes] = await Promise.all([
-        fetch('/api/projects'),
-        fetch('/api/epics'),
-        fetch('/api/features'),
-        fetch('/api/project-logs'),
-        fetch('/api/allocations'),
-      ]);
-      const [p, e, f, logs, alloc] = await Promise.all([
-        pRes.json(),
-        eRes.json(),
-        fRes.json(),
-        logsRes.json(),
-        allocRes.json(),
-      ]);
-      setProjects(p);
-      setEpics(e);
-      setFeatures(f);
-      setProjectLogs(logs);
-      setAllocations(alloc);
-      setLoading(false);
-    }
-    load();
-  }, []);
+    if (pathname !== '/status-report') return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const [pRes, eRes, fRes, logsRes, allocRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/epics'),
+          fetch('/api/features'),
+          fetch('/api/project-logs'),
+          fetch('/api/allocations'),
+        ]);
+        const [p, e, f, logs, alloc] = await Promise.all([
+          pRes.json(),
+          eRes.json(),
+          fRes.json(),
+          logsRes.json(),
+          allocRes.json(),
+        ]);
+        if (!cancelled) {
+          setProjects(p);
+          setEpics(e);
+          setFeatures(f);
+          setProjectLogs(logs);
+          setAllocations(alloc);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname]);
 
   const filteredProjects = useMemo(() =>
     selectedProject ? projects.filter(p => p._id === selectedProject) : projects,

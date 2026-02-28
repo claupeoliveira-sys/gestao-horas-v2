@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 const STATUS_LABEL = {
@@ -14,6 +14,7 @@ const STATUS_LABEL = {
 
 export default function PainelAnalistasPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [people, setPeople] = useState([]);
   const [projects, setProjects] = useState([]);
   const [features, setFeatures] = useState([]);
@@ -21,23 +22,31 @@ export default function PainelAnalistasPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (pathname !== '/painel-analistas') return;
+    let cancelled = false;
     async function load() {
       setLoading(true);
-      const [pRes, projRes, fRes, aRes] = await Promise.all([
-        fetch('/api/people'),
-        fetch('/api/projects'),
-        fetch('/api/features'),
-        fetch('/api/allocations'),
-      ]);
-      const [p, proj, f, a] = await Promise.all([pRes.json(), projRes.json(), fRes.json(), aRes.json()]);
-      setPeople(p);
-      setProjects(proj);
-      setFeatures(f);
-      setAllocations(a);
-      setLoading(false);
+      try {
+        const [pRes, projRes, fRes, aRes] = await Promise.all([
+          fetch('/api/people'),
+          fetch('/api/projects'),
+          fetch('/api/features'),
+          fetch('/api/allocations'),
+        ]);
+        const [p, proj, f, a] = await Promise.all([pRes.json(), projRes.json(), fRes.json(), aRes.json()]);
+        if (!cancelled) {
+          setPeople(p);
+          setProjects(proj);
+          setFeatures(f);
+          setAllocations(a);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
     load();
-  }, []);
+    return () => { cancelled = true; };
+  }, [pathname]);
 
   function projectName(id) {
     const proj = projects.find((x) => x._id === id);

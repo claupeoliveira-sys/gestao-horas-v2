@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function TeamsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -16,15 +17,19 @@ export default function TeamsPage() {
 
   async function loadTeams() {
     setLoading(true);
-    const res = await fetch('/api/teams');
-    const data = await res.json();
-    setTeams(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/teams');
+      const data = await res.json();
+      setTeams(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
+    if (pathname !== '/teams') return;
     loadTeams();
-  }, []);
+  }, [pathname]);
 
   async function handleSubmit(e) {
     e.preventDefault();
