@@ -8,13 +8,10 @@ export default function FeaturesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const [projects, setProjects] = useState([]);
-  const [clients, setClients] = useState([]);
   const [epics, setEpics] = useState([]);
   const [people, setPeople] = useState([]);
   const [features, setFeatures] = useState([]);
-  const [selectedClient, setSelectedClient] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
-  const [selectedEpic, setSelectedEpic] = useState('');
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', userStory: '', analystIds: [] });
   const [saving, setSaving] = useState(false);
@@ -29,15 +26,13 @@ export default function FeaturesPage() {
   }
 
   async function loadBase() {
-    const [pRes, cRes, eRes, peopleRes] = await Promise.all([
+    const [pRes, eRes, peopleRes] = await Promise.all([
       fetch('/api/projects'),
-      fetch('/api/clients'),
       fetch('/api/epics'),
       fetch('/api/people'),
     ]);
-    const [p, c, e, peopleList] = await Promise.all([pRes.json(), cRes.json(), eRes.json(), peopleRes.json()]);
+    const [p, e, peopleList] = await Promise.all([pRes.json(), eRes.json(), peopleRes.json()]);
     setProjects(p);
-    setClients(c || []);
     setEpics(e);
     setPeople(peopleList);
   }
@@ -45,7 +40,8 @@ export default function FeaturesPage() {
   async function loadFeatures() {
     setLoading(true);
     try {
-      const res = await fetch('/api/features');
+      const params = selectedProject ? '?projectId=' + selectedProject : '';
+      const res = await fetch('/api/features' + params);
       setFeatures(await res.json());
     } finally {
       setLoading(false);
@@ -54,8 +50,18 @@ export default function FeaturesPage() {
 
   useEffect(() => {
     if (pathname !== '/features') return;
-    loadBase().then(loadFeatures);
+    loadBase();
   }, [pathname]);
+
+  useEffect(() => {
+    if (pathname !== '/features') return;
+    if (!selectedProject) {
+      setFeatures([]);
+      setLoading(false);
+      return;
+    }
+    loadFeatures();
+  }, [pathname, selectedProject]);
 
   useEffect(() => {
     if (!editingFeature?._id) { setFeatureHistory([]); return; }
@@ -135,11 +141,8 @@ export default function FeaturesPage() {
     return members.map((m) => (typeof m === 'object' ? m : { _id: m, name: people.find((p) => p._id === m)?.name || '—' }));
   }
 
-  const projectIdsForClient = selectedClient
-    ? projects.filter((p) => (p.clientId?._id || p.clientId) === selectedClient).map((p) => p._id)
-    : [];
-  const filteredFeatures = selectedClient
-    ? features.filter((f) => projectIdsForClient.includes(getProjectId(f.projectId)))
+  const filteredFeatures = selectedProject
+    ? features.filter((f) => getProjectId(f.projectId) === selectedProject)
     : features;
   const featuresByEpic = filteredFeatures.reduce((acc, f) => {
     const eid = (typeof f.epicId === 'object' ? f.epicId?._id : f.epicId) || 'none';
@@ -185,20 +188,20 @@ export default function FeaturesPage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Lista de features</h3>
-          <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} style={{ minWidth: 220 }}>
-            <option value="">Selecione um cliente...</option>
-            {clients.map((c) => (
-              <option key={c._id} value={c._id}>{c.name}</option>
+          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{ minWidth: 260 }}>
+            <option value="">Selecione um projeto...</option>
+            {projects.map((p) => (
+              <option key={p._id} value={p._id}>{p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})</option>
             ))}
           </select>
         </div>
 
-        {!selectedClient ? (
-          <p style={{ color: 'var(--text-muted)' }}>Selecione um cliente acima para listar as features agrupadas por épico.</p>
+        {!selectedProject ? (
+          <p style={{ color: 'var(--text-muted)' }}>Selecione um projeto acima para listar as features agrupadas por épico.</p>
         ) : loading ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : filteredFeatures.length === 0 ? (
-          <p>Nenhuma feature encontrada para os projetos deste cliente.</p>
+          <p>Nenhuma feature encontrada para este projeto.</p>
         ) : (
           <>
             {epicOrder.map((epicId) => (

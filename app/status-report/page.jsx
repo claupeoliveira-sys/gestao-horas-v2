@@ -23,6 +23,7 @@ function StatusReportContent() {
   const [loading, setLoading] = useState(true);
   const [logForms, setLogForms] = useState({});
   const [savingLog, setSavingLog] = useState(null);
+  const [diaryExpanded, setDiaryExpanded] = useState({}); // por projectId: true = mostrar formulário
 
   useEffect(() => {
     const id = searchParams.get('project');
@@ -122,6 +123,7 @@ function StatusReportContent() {
     setProjectLogs(logs);
     setLogForm(projectId, { date: new Date().toISOString().slice(0, 10), source: 'status_report', content: '' });
     setSavingLog(null);
+    setDiaryExpanded((prev) => ({ ...prev, [projectId]: false })); // recolhe após incluir (tela para cliente)
   }
 
   function logsForProject(projectId) {
@@ -287,54 +289,22 @@ function StatusReportContent() {
               </table>
 
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-                <h4 style={{ fontSize: 16, marginBottom: 12, color: 'var(--text-muted)' }}>
-                  Diário de bordo
-                </h4>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-                  Acordos, definições e anotações da agenda de status report (ou de e-mails e reuniões).
-                </p>
-                <div className="card" style={{ marginBottom: 16, padding: 16, background: 'var(--bg)' }}>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-                    <div className="form-group" style={{ flex: '0 1 140px', marginBottom: 0 }}>
-                      <label style={{ fontSize: 12 }}>Data da anotação</label>
-                      <input
-                        type="date"
-                        value={getLogForm(p._id).date}
-                        onChange={(e) => setLogForm(p._id, { date: e.target.value })}
-                      />
-                    </div>
-                    <div className="form-group" style={{ flex: '0 1 200px', marginBottom: 0 }}>
-                      <label style={{ fontSize: 12 }}>Origem</label>
-                      <select
-                        value={getLogForm(p._id).source}
-                        onChange={(e) => setLogForm(p._id, { source: e.target.value })}
-                      >
-                        <option value="status_report">Reunião de Status Report</option>
-                        <option value="meeting">Reunião</option>
-                        <option value="email">E-mail</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 12 }}>Anotação / acordos / definições</label>
-                    <textarea
-                      rows={3}
-                      value={getLogForm(p._id).content}
-                      onChange={(e) => setLogForm(p._id, { content: e.target.value })}
-                      placeholder="Ex: Cliente aprovou escopo da fase 2. Próxima reunião em 15/03."
-                    />
-                  </div>
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    disabled={savingLog === p._id || !getLogForm(p._id).content.trim()}
-                    onClick={() => submitLog(p._id)}
-                  >
-                    {savingLog === p._id ? 'Salvando...' : 'Incluir no diário'}
-                  </button>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+                  <h4 style={{ fontSize: 16, margin: 0, color: 'var(--text-muted)' }}>Anotações</h4>
+                  {!diaryExpanded[p._id] ? (
+                    <button
+                      type="button"
+                      className="btn btn-add-collapse"
+                      aria-expanded={false}
+                      onClick={() => setDiaryExpanded((prev) => ({ ...prev, [p._id]: true }))}
+                    >
+                      <span className="btn-add-icon">+</span>
+                      Incluir uma notificação
+                    </button>
+                  ) : null}
                 </div>
-                {logsForProject(p._id).length === 0 ? (
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Nenhuma anotação ainda.</p>
+                {logsForProject(p._id).length === 0 && !diaryExpanded[p._id] ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Nenhuma anotação ainda. Clique em &quot;Incluir uma notificação&quot; para adicionar.</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                     {logsForProject(p._id).map((log) => (
@@ -356,6 +326,58 @@ function StatusReportContent() {
                       </li>
                     ))}
                   </ul>
+                )}
+                {diaryExpanded[p._id] && (
+                  <div className="card" style={{ marginTop: 16, padding: 16, background: 'var(--bg)' }}>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Nova anotação (diário de bordo)</p>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                      <div className="form-group" style={{ flex: '0 1 140px', marginBottom: 0 }}>
+                        <label style={{ fontSize: 12 }}>Data</label>
+                        <input
+                          type="date"
+                          value={getLogForm(p._id).date}
+                          onChange={(e) => setLogForm(p._id, { date: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group" style={{ flex: '0 1 200px', marginBottom: 0 }}>
+                        <label style={{ fontSize: 12 }}>Origem</label>
+                        <select
+                          value={getLogForm(p._id).source}
+                          onChange={(e) => setLogForm(p._id, { source: e.target.value })}
+                        >
+                          <option value="status_report">Reunião de Status Report</option>
+                          <option value="meeting">Reunião</option>
+                          <option value="email">E-mail</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 12 }}>
+                      <label style={{ fontSize: 12 }}>Anotação / acordos / definições</label>
+                      <textarea
+                        rows={3}
+                        value={getLogForm(p._id).content}
+                        onChange={(e) => setLogForm(p._id, { content: e.target.value })}
+                        placeholder="Ex: Cliente aprovou escopo da fase 2. Próxima reunião em 15/03."
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn btn-primary"
+                        type="button"
+                        disabled={savingLog === p._id || !getLogForm(p._id).content.trim()}
+                        onClick={() => submitLog(p._id)}
+                      >
+                        {savingLog === p._id ? 'Salvando...' : 'Incluir no diário'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => setDiaryExpanded((prev) => ({ ...prev, [p._id]: false }))}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
