@@ -9,12 +9,13 @@ export default function EpicsPage() {
   const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
+  const [features, setFeatures] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ projectId: '', name: '', description: '', estimatedHours: '' });
+  const [form, setForm] = useState({ projectId: '', name: '', description: '' });
 
   async function loadProjects() {
     try {
@@ -26,15 +27,26 @@ export default function EpicsPage() {
     }
   }
 
-  async function loadEpics(projectId) {
+  async function loadEpicsAndFeatures(projectId) {
     setLoading(true);
     try {
-      const res = await fetch('/api/epics?projectId=' + (projectId || ''));
-      const e = await res.json();
+      const [eRes, fRes] = await Promise.all([
+        fetch('/api/epics?projectId=' + (projectId || '')),
+        fetch('/api/features?projectId=' + (projectId || '')),
+      ]);
+      const [e, f] = await Promise.all([eRes.json(), fRes.json()]);
       setEpics(projectId ? e : []);
+      setFeatures(projectId ? f : []);
     } finally {
       setLoading(false);
     }
+  }
+
+  function epicHours(epicId) {
+    const list = features.filter((f) => (typeof f.epicId === 'object' ? f.epicId?._id : f.epicId) === epicId);
+    const est = list.reduce((s, x) => s + (Number(x.estimatedHours) || 0), 0);
+    const log = list.reduce((s, x) => s + (Number(x.loggedHours) || 0), 0);
+    return { est, log };
   }
 
   useEffect(() => {
@@ -44,12 +56,12 @@ export default function EpicsPage() {
 
   useEffect(() => {
     if (pathname !== '/epics') return;
-    loadEpics(selectedProject);
+    loadEpicsAndFeatures(selectedProject);
   }, [pathname, selectedProject]);
 
   function openNew() {
     setEditingId(null);
-    setForm({ projectId: '', name: '', description: '', estimatedHours: '' });
+    setForm({ projectId: '', name: '', description: '' });
     setFormOpen(true);
   }
 
@@ -60,7 +72,6 @@ export default function EpicsPage() {
       projectId: projectId || '',
       name: epic.name || '',
       description: epic.description || '',
-      estimatedHours: epic.estimatedHours ?? '',
     });
     setFormOpen(true);
   }
@@ -69,7 +80,7 @@ export default function EpicsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const body = { ...form, estimatedHours: Number(form.estimatedHours || 0) };
+      const body = { ...form };
       if (editingId) {
         await fetch(`/api/epics/${editingId}`, {
           method: 'PUT',
@@ -84,9 +95,9 @@ export default function EpicsPage() {
           body: JSON.stringify(body),
         });
       }
-      setForm({ projectId: '', name: '', description: '', estimatedHours: '' });
+      setForm({ projectId: '', name: '', description: '' });
       setFormOpen(false);
-      loadEpics(selectedProject);
+      loadEpicsAndFeatures(selectedProject);
       loadProjects();
     } finally {
       setSaving(false);
@@ -100,7 +111,7 @@ export default function EpicsPage() {
       await fetch(`/api/epics/${id}`, { method: 'DELETE' });
       if (editingId === id) setEditingId(null);
       setFormOpen(false);
-      loadEpics(selectedProject);
+      loadEpicsAndFeatures(selectedProject);
     } finally {
       setSaving(false);
     }
@@ -144,16 +155,18 @@ export default function EpicsPage() {
               <tr>
                 <th>Épico</th>
                 <th>Projeto</th>
-                <th>Horas estimadas</th>
+                <th>Horas (soma tarefas)</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {epics.map(e => (
+              {epics.map((e) => {
+                const { est, log } = epicHours(e._id);
+                return (
                 <tr key={e._id}>
                   <td>{e.name}</td>
                   <td>{projectName(typeof e.projectId === 'object' ? e.projectId?._id : e.projectId)}</td>
-                  <td>{e.estimatedHours ?? 0}h</td>
+                  <td>{log}h lanç. / {est}h est.</td>
                   <td>
                     <div className="table-actions">
                       <button type="button" className="btn btn-outline" onClick={() => openEdit(e)}>Editar</button>
@@ -161,7 +174,7 @@ export default function EpicsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         )}
@@ -196,10 +209,7 @@ export default function EpicsPage() {
                   <label>Descrição</label>
                   <textarea rows={3} value={form.description} onChange={ev => setForm({ ...form, description: ev.target.value })} />
                 </div>
-                <div className="form-group">
-                  <label>Horas estimadas</label>
-                  <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={ev => setForm({ ...form, estimatedHours: ev.target.value })} />
-                </div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>As horas do épico são a soma das horas estimadas das tarefas (features).</p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-primary" type="submit" disabled={saving}>
                     {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Salvar épico'}

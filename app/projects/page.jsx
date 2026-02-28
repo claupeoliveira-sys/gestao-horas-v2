@@ -9,7 +9,12 @@ export default function ProjectsPage() {
   const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [people, setPeople] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [clients, setClients] = useState([]);
+  const [addMemberTeamId, setAddMemberTeamId] = useState('');
+  const [addMemberPersonId, setAddMemberPersonId] = useState('');
+  const [addMemberTeamIdForm, setAddMemberTeamIdForm] = useState('');
+  const [addMemberPersonIdForm, setAddMemberPersonIdForm] = useState('');
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -27,22 +32,42 @@ export default function ProjectsPage() {
   async function loadProjects() {
     setLoading(true);
     try {
-      const [pRes, peopleRes, clientsRes] = await Promise.all([
+      const [pRes, peopleRes, clientsRes, teamsRes] = await Promise.all([
         fetch('/api/projects'),
         fetch('/api/people'),
         fetch('/api/clients'),
+        fetch('/api/teams'),
       ]);
-      const [data, peopleData, clientsData] = await Promise.all([
+      const [data, peopleData, clientsData, teamsData] = await Promise.all([
         pRes.json(),
         peopleRes.json(),
         clientsRes.json(),
+        teamsRes.json(),
       ]);
       setProjects(data);
       setPeople(peopleData);
       setClients(clientsData);
+      setTeams(teamsData || []);
     } finally {
       setLoading(false);
     }
+  }
+
+  const peopleByTeam = addMemberTeamId
+    ? people.filter((x) => (typeof x.teamId === 'object' ? x.teamId?._id : x.teamId) === addMemberTeamId)
+    : people;
+  const peopleByTeamForm = addMemberTeamIdForm
+    ? people.filter((x) => (typeof x.teamId === 'object' ? x.teamId?._id : x.teamId) === addMemberTeamIdForm)
+    : people;
+
+  function addMemberToList(ids, setIds, personId) {
+    if (!personId || ids.includes(personId)) return;
+    setIds([...ids, personId]);
+    setAddMemberPersonId('');
+    setAddMemberPersonIdForm('');
+  }
+  function removeMemberFromList(ids, setIds, personId) {
+    setIds(ids.filter((id) => id !== personId));
   }
 
   function clientName(p) {
@@ -205,19 +230,40 @@ export default function ProjectsPage() {
         {editingProject && (
           <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
             <h4 style={{ marginBottom: 12 }}>Membros do projeto: {editingProject.name}</h4>
-            <div className="form-group">
-              <label>Selecione as pessoas (Ctrl para múltiplos)</label>
-              <select
-                multiple
-                size={8}
-                value={editingMemberIds}
-                onChange={e => setEditingMemberIds(Array.from(e.target.selectedOptions, (o) => o.value))}
-                style={{ minHeight: 120 }}
-              >
-                {people.map((person) => (
-                  <option key={person._id} value={person._id}>{person.name}</option>
-                ))}
-              </select>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0, minWidth: 160 }}>
+                <label style={{ fontSize: 12 }}>Time</label>
+                <select value={addMemberTeamId} onChange={e => { setAddMemberTeamId(e.target.value); setAddMemberPersonId(''); }} style={{ width: '100%' }}>
+                  <option value="">Todos</option>
+                  {teams.map((t) => (
+                    <option key={t._id} value={t._id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0, minWidth: 180 }}>
+                <label style={{ fontSize: 12 }}>Pessoa</label>
+                <select value={addMemberPersonId} onChange={e => setAddMemberPersonId(e.target.value)} style={{ width: '100%' }}>
+                  <option value="">Selecione...</option>
+                  {peopleByTeam.map((person) => (
+                    <option key={person._id} value={person._id}>{person.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" className="btn btn-add-collapse" onClick={() => addMemberToList(editingMemberIds, setEditingMemberIds, addMemberPersonId)} disabled={!addMemberPersonId}>
+                <span className="btn-add-icon">+</span>
+                Adicionar
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {editingMemberIds.map((id) => {
+                const person = people.find((x) => x._id === id);
+                return (
+                  <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)', fontSize: 13 }}>
+                    {person?.name || id}
+                    <button type="button" onClick={() => removeMemberFromList(editingMemberIds, setEditingMemberIds, id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }} title="Remover">×</button>
+                  </span>
+                );
+              })}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary" onClick={saveMembers} disabled={saving}>
@@ -281,18 +327,41 @@ export default function ProjectsPage() {
                 </div>
                 <div className="form-group">
                   <label>Pessoas no projeto (opcional)</label>
-                  <select
-                    multiple
-                    size={5}
-                    value={form.memberIds || []}
-                    onChange={e => setForm({ ...form, memberIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
-                    style={{ minHeight: 100 }}
-                  >
-                    {people.map((person) => (
-                      <option key={person._id} value={person._id}>{person.name}</option>
-                    ))}
-                  </select>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Segure Ctrl para selecionar vários.</p>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+                    <div style={{ minWidth: 160 }}>
+                      <label style={{ fontSize: 12 }}>Time</label>
+                      <select value={addMemberTeamIdForm} onChange={e => { setAddMemberTeamIdForm(e.target.value); setAddMemberPersonIdForm(''); }} style={{ width: '100%' }}>
+                        <option value="">Todos</option>
+                        {teams.map((t) => (
+                          <option key={t._id} value={t._id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ minWidth: 180 }}>
+                      <label style={{ fontSize: 12 }}>Pessoa</label>
+                      <select value={addMemberPersonIdForm} onChange={e => setAddMemberPersonIdForm(e.target.value)} style={{ width: '100%' }}>
+                        <option value="">Selecione...</option>
+                        {peopleByTeamForm.map((person) => (
+                          <option key={person._id} value={person._id}>{person.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <button type="button" className="btn btn-add-collapse" onClick={() => addMemberToList(form.memberIds || [], (ids) => setForm({ ...form, memberIds: ids }), addMemberPersonIdForm)} disabled={!addMemberPersonIdForm}>
+                      <span className="btn-add-icon">+</span>
+                      Adicionar
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {(form.memberIds || []).map((id) => {
+                      const person = people.find((x) => x._id === id);
+                      return (
+                        <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)', fontSize: 13 }}>
+                          {person?.name || id}
+                          <button type="button" onClick={() => removeMemberFromList(form.memberIds || [], (ids) => setForm({ ...form, memberIds: ids }), id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }}>×</button>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-primary" type="submit" disabled={saving}>

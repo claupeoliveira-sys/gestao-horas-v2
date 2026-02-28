@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 const COLUMNS = [
+  { id: 'not_prioritized', title: 'Não priorizado', status: 'not_prioritized' },
   { id: 'backlog', title: 'Backlog', status: 'backlog' },
   { id: 'in_progress', title: 'Em andamento', status: 'in_progress' },
   { id: 'block_internal', title: 'Imped. interno', status: 'block_internal' },
@@ -21,6 +22,7 @@ export default function KanbanPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [infoFeature, setInfoFeature] = useState(null);
+  const [showNotPrioritized, setShowNotPrioritized] = useState(false);
 
   async function loadFeatures() {
     setLoading(true);
@@ -66,6 +68,8 @@ export default function KanbanPage() {
   function featuresByStatus(status) {
     return features.filter((f) => (f.status || 'backlog') === status);
   }
+
+  const columnsToShow = showNotPrioritized ? COLUMNS : COLUMNS.filter((c) => c.status !== 'not_prioritized');
 
   async function moveCard(featureId, newStatus) {
     const f = features.find((x) => x._id === featureId);
@@ -132,6 +136,14 @@ export default function KanbanPage() {
             ))}
           </select>
           <button
+            type="button"
+            className={showNotPrioritized ? 'btn btn-primary' : 'btn btn-outline'}
+            onClick={() => setShowNotPrioritized(!showNotPrioritized)}
+            title="Mostrar/ocultar coluna Backlog não priorizado"
+          >
+            {showNotPrioritized ? 'Ocultar' : 'Mostrar'} não priorizado
+          </button>
+          <button
             className="btn btn-outline"
             type="button"
             onClick={() => loadFeatures()}
@@ -168,8 +180,9 @@ export default function KanbanPage() {
             minHeight: 400,
           }}
           className="kanban-board"
+          style={{ gridTemplateColumns: showNotPrioritized ? 'repeat(auto-fill, minmax(180px, 1fr))' : 'repeat(auto-fill, minmax(180px, 1fr))' }}
         >
-          {COLUMNS.map((col) => (
+          {columnsToShow.map((col) => (
             <div
               key={col.id}
               data-status={col.status}
@@ -219,7 +232,7 @@ export default function KanbanPage() {
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                           <span>Est.: {f.estimatedHours ?? 0}h</span>
-                          <span>Lanç.: {f.loggedHours ?? 0}h</span>
+                          <span style={{ color: (Number(f.loggedHours) || 0) > (Number(f.estimatedHours) || 0) ? 'var(--danger)' : undefined, fontWeight: (Number(f.loggedHours) || 0) > (Number(f.estimatedHours) || 0) ? 600 : undefined }}>Lanç.: {f.loggedHours ?? 0}h</span>
                           <span>{f.createdAt ? new Date(f.createdAt).toLocaleDateString('pt-BR') : '—'}</span>
                         </div>
                       </div>
@@ -266,7 +279,10 @@ export default function KanbanPage() {
                         <p style={{ margin: '4px 0' }}><strong>ID:</strong> {f.code || '—'}</p>
                         <p style={{ margin: '4px 0' }}><strong>Descrição:</strong> {f.description || '—'}</p>
                         <p style={{ margin: '4px 0' }}><strong>História de usuário:</strong> {f.userStory || '—'}</p>
-                        <p style={{ margin: '4px 0' }}><strong>Horas est./lanç.:</strong> {f.estimatedHours ?? 0}h / {f.loggedHours ?? 0}h</p>
+                        <p style={{ margin: '4px 0', color: (Number(f.loggedHours) || 0) > (Number(f.estimatedHours) || 0) ? 'var(--danger)' : undefined }}>
+                          <strong>Horas est./lanç.:</strong> {f.estimatedHours ?? 0}h / {f.loggedHours ?? 0}h
+                          {(Number(f.loggedHours) || 0) > (Number(f.estimatedHours) || 0) && ' (acima do estimado)'}
+                        </p>
                         <p style={{ margin: '4px 0' }}><strong>Conclusão:</strong> {f.percentComplete ?? 0}%</p>
                         {(f.attachments && f.attachments.length > 0) && (
                           <p style={{ margin: '4px 0' }}>

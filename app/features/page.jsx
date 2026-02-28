@@ -122,6 +122,7 @@ export default function FeaturesPage() {
 
   function statusLabel(s) {
     return {
+      not_prioritized: 'Não priorizado',
       backlog: 'Backlog',
       in_progress: 'Em andamento',
       block_internal: 'Impedimento interno',
@@ -227,7 +228,7 @@ export default function FeaturesPage() {
                         <td>{f.name}</td>
                         <td style={{ fontSize: 13 }}>{analystNames(f)}</td>
                         <td>{f.estimatedHours ?? 0}h</td>
-                        <td>{f.loggedHours ?? 0}h</td>
+                        <td style={{ color: (Number(f.loggedHours) || 0) > (Number(f.estimatedHours) || 0) ? 'var(--danger)' : undefined, fontWeight: (Number(f.loggedHours) || 0) > (Number(f.estimatedHours) || 0) ? 600 : undefined }}>{f.loggedHours ?? 0}h</td>
                         <td>
                           <div className="progress-bar" style={{ minWidth: 80 }}>
                             <div className="progress-fill" style={{ width: `${f.percentComplete || 0}%` }} />
@@ -244,7 +245,7 @@ export default function FeaturesPage() {
                         setEditingData({
                           loggedHours: f.loggedHours ?? 0,
                           percentComplete: f.percentComplete ?? 0,
-                          status: f.status || 'backlog',
+                          status: f.status || 'not_prioritized',
                           details: f.details || '',
                           userStory: f.userStory || '',
                           analystIds: ids,
@@ -292,6 +293,7 @@ export default function FeaturesPage() {
               <div className="form-group" style={{ flex: 1 }}>
                 <label>Status</label>
                 <select value={editingData.status} onChange={e => setEditingData({ ...editingData, status: e.target.value })}>
+                  <option value="not_prioritized">Não priorizado</option>
                   <option value="backlog">Backlog</option>
                   <option value="in_progress">Em andamento</option>
                   <option value="block_internal">Impedimento interno</option>

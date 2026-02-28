@@ -70,7 +70,7 @@ function StatusReportContent() {
   );
 
   function metrics(projectId) {
-    const f = features.filter(f => f.projectId === projectId);
+    const f = features.filter((f) => getProjectId(f.projectId) === projectId);
     if (!f.length) return { totalEstimated: 0, totalLogged: 0, avgPercent: 0, doneCount: 0, total: 0 };
     return {
       totalEstimated: f.reduce((s, x) => s + (x.estimatedHours || 0), 0),
@@ -146,6 +146,23 @@ function StatusReportContent() {
 
   function allocationsForProject(projectId) {
     return allocations.filter((a) => (typeof a.projectId === 'object' ? a.projectId?._id : a.projectId) === projectId);
+  }
+
+  function getProjectId(ref) {
+    return ref && (typeof ref === 'object' ? ref._id : ref);
+  }
+  function getEpicId(ref) {
+    return ref && (typeof ref === 'object' ? ref._id : ref);
+  }
+  function featuresForProject(projectId) {
+    return features.filter((f) => getProjectId(f.projectId) === projectId);
+  }
+  function featuresForEpic(projectId, epicId) {
+    return featuresForProject(projectId).filter((f) => getEpicId(f.epicId) === epicId);
+  }
+  function analystNames(f) {
+    const ids = f.analystIds || [];
+    return ids.map((a) => (typeof a === 'object' && a?.name ? a.name : '—')).filter(Boolean).join(', ') || '—';
   }
 
   function clientName(p) {
@@ -262,31 +279,62 @@ function StatusReportContent() {
                 </div>
               )}
 
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>Épicos</p>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Épico</th>
-                    <th>Nº features</th>
-                    <th>Horas est.</th>
-                    <th>% médio</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {epics.filter(e => e.projectId === p._id).map(e => {
-                    const fEpic = features.filter(f => f.epicId === e._id);
-                    const avg = fEpic.length === 0 ? 0 : Math.round(fEpic.reduce((s, f) => s + (f.percentComplete || 0), 0) / fEpic.length);
-                    return (
-                      <tr key={e._id}>
-                        <td>{e.name}</td>
-                        <td>{fEpic.length}</td>
-                        <td>{e.estimatedHours ?? 0}h</td>
-                        <td>{avg}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Épicos e tarefas</p>
+              {epics.filter((e) => (typeof e.projectId === 'object' ? e.projectId?._id : e.projectId) === p._id).map((e) => {
+                const fEpic = featuresForEpic(p._id, e._id);
+                const epicEst = fEpic.reduce((s, f) => s + (Number(f.estimatedHours) || 0), 0);
+                const epicLog = fEpic.reduce((s, f) => s + (Number(f.loggedHours) || 0), 0);
+                const avg = fEpic.length === 0 ? 0 : Math.round(fEpic.reduce((s, f) => s + (f.percentComplete || 0), 0) / fEpic.length);
+                return (
+                  <div key={e._id} style={{ marginBottom: 20, padding: 16, background: 'var(--bg-subtle)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                      <strong style={{ fontSize: 14 }}>Épico: {e.name}</strong>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{fEpic.length} tarefa(s) · {epicEst}h est. · {epicLog}h lanç. · {avg}% médio</span>
+                    </div>
+                    {fEpic.length === 0 ? (
+                      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Nenhuma tarefa neste épico.</p>
+                    ) : (
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        {fEpic.map((f) => {
+                          const overHours = (Number(f.loggedHours) || 0) > (Number(f.estimatedHours) || 0);
+                          return (
+                            <li key={f._id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                                <div>
+                                  <span style={{ fontFamily: 'monospace', marginRight: 8 }}>{f.code || '—'}</span>
+                                  <strong>{f.name}</strong>
+                                  <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>Executante(s): {analystNames(f)}</div>
+                                </div>
+                                <div style={{ minWidth: 120, textAlign: 'right' }}>
+                                  <div style={{ marginBottom: 4 }}>
+                                    <span style={{ color: overHours ? 'var(--danger)' : 'inherit', fontWeight: overHours ? 600 : undefined }}>
+                                      {f.loggedHours ?? 0}h / {f.estimatedHours ?? 0}h
+                                    </span>
+                                    {overHours && <span style={{ marginLeft: 6, color: 'var(--danger)', fontSize: 11 }}>acima do estimado</span>}
+                                  </div>
+                                  <div className="progress-bar" style={{ height: 6, marginBottom: 2 }}>
+                                    <div
+                                      className="progress-fill"
+                                      style={{
+                                        width: `${Math.min(100, ((f.loggedHours || 0) / (f.estimatedHours || 1)) * 100)}%`,
+                                        background: overHours ? 'var(--danger)' : undefined,
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="progress-bar" style={{ height: 6 }}>
+                                    <div className="progress-fill" style={{ width: `${f.percentComplete || 0}%` }} />
+                                  </div>
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Conclusão: {f.percentComplete || 0}%</span>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
 
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
