@@ -16,6 +16,7 @@ export default function FeaturesPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', userStory: '', analystIds: [] });
   const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingFeature, setEditingFeature] = useState(null);
   const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', userStory: '', analystIds: [] });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -58,14 +59,30 @@ export default function FeaturesPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
-    await fetch('/api/features', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, estimatedHours: Number(form.estimatedHours || 0), analystIds: form.analystIds || [], userStory: form.userStory || '' }),
-    });
-    setSaving(false);
-    setForm({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', userStory: '', analystIds: [] });
-    loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
+    try {
+      await fetch('/api/features', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, estimatedHours: Number(form.estimatedHours || 0), analystIds: form.analystIds || [], userStory: form.userStory || '' }),
+      });
+      setForm({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', userStory: '', analystIds: [] });
+      setFormOpen(false);
+      loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRemoveFeature(id, name) {
+    if (!confirm(`Remover a feature "${name}"? Esta ação não pode ser desfeita.`)) return;
+    setSavingEdit(true);
+    try {
+      await fetch(`/api/features/${id}`, { method: 'DELETE' });
+      setEditingFeature(null);
+      loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   async function saveEdit() {
@@ -133,72 +150,6 @@ export default function FeaturesPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cadastrar feature</h3>
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Projeto</label>
-              <select value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value, epicId: '' })} required>
-                <option value="">Selecione...</option>
-                {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Épico</label>
-              <select value={form.epicId} onChange={e => setForm({ ...form, epicId: e.target.value })} required>
-                <option value="">Selecione...</option>
-                {epics.filter(e => !form.projectId || e.projectId === form.projectId).map(e => (
-                  <option key={e._id} value={e._id}>{e.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Nome da feature</label>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          </div>
-          <div className="form-group">
-            <label>Descrição</label>
-            <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label>Horas estimadas</label>
-            <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={e => setForm({ ...form, estimatedHours: e.target.value })} required />
-          </div>
-          <div className="form-group">
-            <label>Detalhamento / História de usuário (opcional)</label>
-            <textarea
-              rows={3}
-              value={form.userStory}
-              onChange={e => setForm({ ...form, userStory: e.target.value })}
-              placeholder="Ex: Como [usuário], quero [ação] para [benefício]..."
-            />
-          </div>
-          <div className="form-group">
-            <label>Analista(s) — somente membros do projeto</label>
-            <select
-              multiple
-              size={5}
-              value={form.analystIds || []}
-              onChange={e => setForm({ ...form, analystIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
-              style={{ minHeight: 90 }}
-            >
-              {analystOptionsForForm().map((person) => (
-                <option key={person._id} value={person._id}>{person.name}</option>
-              ))}
-            </select>
-            {form.projectId && analystOptionsForForm().length === 0 && (
-              <p style={{ fontSize: 12, color: 'var(--warning)' }}>Adicione pessoas ao projeto em Projetos → Editar / Membros.</p>
-            )}
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Ctrl+clique para múltiplos.</p>
-          </div>
-          <button className="btn btn-primary" type="submit" disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar feature'}
-          </button>
-        </form>
-      </div>
-
-      <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18 }}>Lista de features</h3>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -215,7 +166,7 @@ export default function FeaturesPage() {
           </div>
         </div>
 
-        {loading ? <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div> : features.length === 0 ? <p>Nenhuma feature encontrada.</p> : (
+        {loading ? <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div> : features.length === 0 ? <p>Nenhuma feature encontrada. Use o botão abaixo para cadastrar.</p> : (
           <table>
             <thead>
               <tr>
@@ -247,14 +198,17 @@ export default function FeaturesPage() {
                   </td>
                   <td>{statusLabel(f.status)}</td>
                   <td>
-                    <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: 12 }}
-                      onClick={() => {
-                        setEditingFeature(f);
-                        const ids = (f.analystIds || []).map((a) => (typeof a === 'object' ? a._id : a));
-                        setEditingData({ loggedHours: f.loggedHours ?? 0, percentComplete: f.percentComplete ?? 0, status: f.status || 'backlog', details: f.details || '', userStory: f.userStory || '', analystIds: ids });
-                      }}>
-                      Editar
-                    </button>
+                    <div className="table-actions">
+                      <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: 12 }}
+                        onClick={() => {
+                          setEditingFeature(f);
+                          const ids = (f.analystIds || []).map((a) => (typeof a === 'object' ? a._id : a));
+                          setEditingData({ loggedHours: f.loggedHours ?? 0, percentComplete: f.percentComplete ?? 0, status: f.status || 'backlog', details: f.details || '', userStory: f.userStory || '', analystIds: ids });
+                        }}>
+                        Editar
+                      </button>
+                      <button type="button" className="btn btn-danger" onClick={() => handleRemoveFeature(f._id, f.name)} disabled={savingEdit}>Remover</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -328,7 +282,90 @@ export default function FeaturesPage() {
               <button className="btn btn-primary" onClick={saveEdit} disabled={savingEdit}>
                 {savingEdit ? 'Salvando...' : 'Salvar alterações'}
               </button>
-              <button className="btn btn-outline" onClick={() => setEditingFeature(null)}>Cancelar</button>
+              <button type="button" className="btn btn-outline" onClick={() => setEditingFeature(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <button
+          type="button"
+          className="collapsible-trigger"
+          aria-expanded={formOpen}
+          onClick={() => setFormOpen(!formOpen)}
+        >
+          Cadastrar feature
+          <span className="chevron">▼</span>
+        </button>
+        {formOpen && (
+          <div className="collapsible-content">
+            <div className="collapsible-content-inner">
+              <form onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Projeto</label>
+              <select value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value, epicId: '' })} required>
+                <option value="">Selecione...</option>
+                {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Épico</label>
+              <select value={form.epicId} onChange={e => setForm({ ...form, epicId: e.target.value })} required>
+                <option value="">Selecione...</option>
+                {epics.filter(e => !form.projectId || e.projectId === form.projectId).map(e => (
+                  <option key={e._id} value={e._id}>{e.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Nome da feature</label>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          </div>
+          <div className="form-group">
+            <label>Descrição</label>
+            <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label>Horas estimadas</label>
+            <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={e => setForm({ ...form, estimatedHours: e.target.value })} required />
+          </div>
+          <div className="form-group">
+            <label>Detalhamento / História de usuário (opcional)</label>
+            <textarea
+              rows={3}
+              value={form.userStory}
+              onChange={e => setForm({ ...form, userStory: e.target.value })}
+              placeholder="Ex: Como [usuário], quero [ação] para [benefício]..."
+            />
+          </div>
+          <div className="form-group">
+            <label>Analista(s) — somente membros do projeto</label>
+            <select
+              multiple
+              size={5}
+              value={form.analystIds || []}
+              onChange={e => setForm({ ...form, analystIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
+              style={{ minHeight: 90 }}
+            >
+              {analystOptionsForForm().map((person) => (
+                <option key={person._id} value={person._id}>{person.name}</option>
+              ))}
+            </select>
+            {form.projectId && analystOptionsForForm().length === 0 && (
+              <p style={{ fontSize: 12, color: 'var(--warning)' }}>Adicione pessoas ao projeto em Projetos → Editar / Membros.</p>
+            )}
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Ctrl+clique para múltiplos.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" type="submit" disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar feature'}
+            </button>
+            <button type="button" className="btn btn-outline" onClick={() => setFormOpen(false)}>Cancelar</button>
+          </div>
+        </form>
             </div>
           </div>
         )}

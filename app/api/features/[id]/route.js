@@ -33,3 +33,10 @@ export async function PUT(req, { params }) {
 
   return NextResponse.json(feature);
 }
+
+export async function DELETE(req, { params }) {
+  await connectDB();
+  const feature = await Feature.findByIdAndDelete(params.id);
+  if (!feature) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+  return NextResponse.json({ ok: true });
+}

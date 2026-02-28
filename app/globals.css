@@ -219,6 +219,54 @@ tr:hover { background: var(--bg-subtle); }
   line-height: 1.45;
 }
 
+.collapsible-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.collapsible-trigger:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+.collapsible-trigger .chevron {
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+.collapsible-trigger[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+.collapsible-content {
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+.collapsible-content-inner {
+  padding: 20px 0 0;
+}
+.table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.table-actions .btn { padding: 6px 12px; font-size: 13px; }
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
 .kanban-column-drag-over {
   border-color: var(--primary) !important;
   background: rgba(37, 99, 235, 0.05) !important;

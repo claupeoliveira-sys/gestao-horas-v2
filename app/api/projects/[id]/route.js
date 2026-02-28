@@ -11,3 +11,10 @@ export async function PUT(req, { params }) {
   if (!project) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   return NextResponse.json(project);
 }
+
+export async function DELETE(req, { params }) {
+  await connectDB();
+  const project = await Project.findByIdAndDelete(params.id);
+  if (!project) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+  return NextResponse.json({ ok: true });
+}

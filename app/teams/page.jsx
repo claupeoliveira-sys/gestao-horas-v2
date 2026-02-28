@@ -10,6 +10,8 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -31,17 +33,58 @@ export default function TeamsPage() {
     loadTeams();
   }, [pathname]);
 
+  function openNew() {
+    setEditingId(null);
+    setForm({ name: '', description: '' });
+    setFormOpen(true);
+  }
+
+  function openEdit(t) {
+    setEditingId(t._id);
+    setForm({
+      name: t.name || '',
+      description: t.description || '',
+    });
+    setFormOpen(true);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
-    await fetch('/api/teams', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    setSaving(false);
-    setForm({ name: '', description: '' });
-    loadTeams();
+    try {
+      if (editingId) {
+        await fetch(`/api/teams/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        setEditingId(null);
+      } else {
+        await fetch('/api/teams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+      }
+      setForm({ name: '', description: '' });
+      setFormOpen(false);
+      loadTeams();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRemove(id, name) {
+    if (!confirm(`Remover o time "${name}"? Pessoas vinculadas ficarão sem time. Esta ação não pode ser desfeita.`)) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/teams/${id}`, { method: 'DELETE' });
+      if (editingId === id) setEditingId(null);
+      setFormOpen(false);
+      loadTeams();
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -57,36 +100,11 @@ export default function TeamsPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cadastrar time</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Nome do time</label>
-            <input
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Descrição</label>
-            <textarea
-              rows={3}
-              value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-          <button className="btn btn-primary" type="submit" disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar time'}
-          </button>
-        </form>
-      </div>
-
-      <div className="card">
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de times</h3>
         {loading ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : teams.length === 0 ? (
-          <p>Nenhum time cadastrado.</p>
+          <p>Nenhum time cadastrado. Use o botão abaixo para cadastrar.</p>
         ) : (
           <table>
             <thead>
@@ -94,17 +112,20 @@ export default function TeamsPage() {
                 <th>Nome</th>
                 <th>Descrição</th>
                 <th>Criado em</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {teams.map(t => (
                 <tr key={t._id}>
                   <td>{t.name}</td>
-                  <td>{t.description || '-'}</td>
+                  <td>{t.description || '—'}</td>
+                  <td>{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '—'}</td>
                   <td>
-                    {t.createdAt
-                      ? new Date(t.createdAt).toLocaleDateString()
-                      : '-'}
+                    <div className="table-actions">
+                      <button type="button" className="btn btn-outline" onClick={() => openEdit(t)}>Editar</button>
+                      <button type="button" className="btn btn-danger" onClick={() => handleRemove(t._id, t.name)} disabled={saving}>Remover</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -112,7 +133,40 @@ export default function TeamsPage() {
           </table>
         )}
       </div>
+
+      <div className="card">
+        <button
+          type="button"
+          className="collapsible-trigger"
+          aria-expanded={formOpen}
+          onClick={() => { setFormOpen(!formOpen); if (!formOpen) openNew(); }}
+        >
+          {editingId ? 'Editar time' : 'Cadastrar novo time'}
+          <span className="chevron">▼</span>
+        </button>
+        {formOpen && (
+          <div className="collapsible-content">
+            <div className="collapsible-content-inner">
+              <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label>Nome do time</label>
+                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                </div>
+                <div className="form-group">
+                  <label>Descrição</label>
+                  <textarea rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary" type="submit" disabled={saving}>
+                    {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Salvar time'}
+                  </button>
+                  <button type="button" className="btn btn-outline" onClick={() => { setFormOpen(false); setEditingId(null); }}>Cancelar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
