@@ -4,7 +4,9 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   await connectDB();
-  const people = await Person.find().sort({ createdAt: -1 });
+  const people = await Person.find()
+    .populate('teamId', 'name')
+    .sort({ createdAt: -1 });
   return NextResponse.json(people);
 }
 

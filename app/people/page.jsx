@@ -2,24 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function PeoplePage() {
   const router = useRouter();
   const [people, setPeople] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
     role: '',
-    team: '',
+    teamId: '',
   });
 
   async function loadPeople() {
     setLoading(true);
-    const res = await fetch('/api/people');
-    const data = await res.json();
+    const [res, tRes] = await Promise.all([fetch('/api/people'), fetch('/api/teams')]);
+    const [data, teamsData] = await Promise.all([res.json(), tRes.json()]);
     setPeople(data);
+    setTeams(teamsData);
     setLoading(false);
   }
 
@@ -33,11 +36,16 @@ export default function PeoplePage() {
     await fetch('/api/people', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, teamId: form.teamId || undefined }),
     });
     setSaving(false);
-    setForm({ name: '', email: '', role: '', team: '' });
+    setForm({ name: '', email: '', role: '', teamId: '' });
     loadPeople();
+  }
+
+  function teamName(p) {
+    if (p.teamId && typeof p.teamId === 'object') return p.teamId.name;
+    return p.team || '—';
   }
 
   return (
@@ -80,12 +88,16 @@ export default function PeoplePage() {
             />
           </div>
           <div className="form-group">
-            <label>Time (texto livre)</label>
-            <input
-              value={form.team}
-              onChange={e => setForm({ ...form, team: e.target.value })}
-              placeholder="Ex: Squad A, Backend..."
-            />
+            <label>Time</label>
+            <select
+              value={form.teamId}
+              onChange={e => setForm({ ...form, teamId: e.target.value })}
+            >
+              <option value="">Selecione...</option>
+              {teams.map(t => (
+                <option key={t._id} value={t._id}>{t.name}</option>
+              ))}
+            </select>
           </div>
           <button className="btn btn-primary" type="submit" disabled={saving}>
             {saving ? 'Salvando...' : 'Salvar pessoa'}
@@ -96,7 +108,7 @@ export default function PeoplePage() {
       <div className="card">
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de pessoas</h3>
         {loading ? (
-          <p>Carregando...</p>
+          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : people.length === 0 ? (
           <p>Nenhuma pessoa cadastrada.</p>
         ) : (
@@ -116,7 +128,7 @@ export default function PeoplePage() {
                   <td>{p.name}</td>
                   <td>{p.email || '-'}</td>
                   <td>{p.role || '-'}</td>
-                  <td>{p.team || '-'}</td>
+                  <td>{teamName(p)}</td>
                   <td>
                     {p.createdAt
                       ? new Date(p.createdAt).toLocaleDateString()

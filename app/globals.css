@@ -162,3 +162,59 @@ tr:hover { background: #f1f5f9; }
   border-color: var(--primary) !important;
   background: rgba(37, 99, 235, 0.06) !important;
 }
+
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: loading-spin 0.9s linear infinite;
+}
+.loading-clock {
+  width: 48px;
+  height: 48px;
+  position: relative;
+  border: 3px solid var(--border);
+  border-radius: 50%;
+  animation: loading-spin 3s linear infinite;
+}
+.loading-clock::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 18px;
+  background: var(--primary);
+  transform-origin: bottom center;
+  transform: translate(-50%, -100%) rotate(0deg);
+  animation: loading-clock-hand 2s linear infinite;
+}
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes loading-clock-hand {
+  to { transform: translate(-50%, -100%) rotate(360deg); }
+}
+
+.nav-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  padding: 12px 12px 4px;
+  margin-top: 8px;
+}
+.nav-group-label:first-child { margin-top: 0; }

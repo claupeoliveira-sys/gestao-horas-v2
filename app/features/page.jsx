@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function FeaturesPage() {
   const router = useRouter();
@@ -12,10 +13,10 @@ export default function FeaturesPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedEpic, setSelectedEpic] = useState('');
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', analystIds: [] });
+  const [form, setForm] = useState({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', userStory: '', analystIds: [] });
   const [saving, setSaving] = useState(false);
   const [editingFeature, setEditingFeature] = useState(null);
-  const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', analystIds: [] });
+  const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', userStory: '', analystIds: [] });
   const [savingEdit, setSavingEdit] = useState(false);
 
   async function loadBase() {
@@ -45,10 +46,10 @@ export default function FeaturesPage() {
     await fetch('/api/features', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, estimatedHours: Number(form.estimatedHours || 0), analystIds: form.analystIds || [] }),
+      body: JSON.stringify({ ...form, estimatedHours: Number(form.estimatedHours || 0), analystIds: form.analystIds || [], userStory: form.userStory || '' }),
     });
     setSaving(false);
-    setForm({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', analystIds: [] });
+    setForm({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', userStory: '', analystIds: [] });
     loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
   }
 
@@ -62,6 +63,7 @@ export default function FeaturesPage() {
         percentComplete: Number(editingData.percentComplete || 0),
         status: editingData.status,
         details: editingData.details,
+        userStory: editingData.userStory || '',
         analystIds: editingData.analystIds || [],
       }),
     });
@@ -76,17 +78,24 @@ export default function FeaturesPage() {
 
   function analystNames(f) {
     const ids = f.analystIds || [];
-    return ids.map((a) => (typeof a === 'object' && a?.name ? a.name : people.find((p) => p._id === a)?.name || '—')).filter(Boolean).join(', ') || '—';
+    return ids.map((a) => (typeof a === 'object' && a?.name ? a.name : '—')).filter(Boolean).join(', ') || '—';
   }
 
-  function toggleAnalyst(formKey, payload, id) {
-    const current = formKey === 'form' ? form.analystIds : editingData.analystIds;
-    const arr = Array.isArray(current) ? [...current] : [];
-    const idx = arr.indexOf(id);
-    if (idx >= 0) arr.splice(idx, 1);
-    else arr.push(id);
-    if (formKey === 'form') setForm({ ...form, analystIds: arr });
-    else setEditingData({ ...payload, analystIds: arr });
+  function projectMembers(projectId) {
+    const proj = projects.find((p) => p._id === projectId);
+    const members = proj?.memberIds || [];
+    return members.map((m) => (typeof m === 'object' ? m : { _id: m, name: people.find((p) => p._id === m)?.name || '—' }));
+  }
+
+  function analystOptionsForForm() {
+    if (!form.projectId) return [];
+    return projectMembers(form.projectId);
+  }
+
+  function analystOptionsForEdit() {
+    const projectId = editingFeature?.projectId;
+    if (!projectId) return [];
+    return projectMembers(typeof projectId === 'object' ? projectId._id : projectId);
   }
 
   return (
@@ -135,20 +144,31 @@ export default function FeaturesPage() {
             <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={e => setForm({ ...form, estimatedHours: e.target.value })} required />
           </div>
           <div className="form-group">
-            <label>Analista(s)</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {people.map((person) => (
-                <label key={person._id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={(form.analystIds || []).includes(person._id)}
-                    onChange={() => toggleAnalyst('form', form, person._id)}
-                  />
-                  {person.name}
-                </label>
+            <label>Detalhamento / História de usuário (opcional)</label>
+            <textarea
+              rows={3}
+              value={form.userStory}
+              onChange={e => setForm({ ...form, userStory: e.target.value })}
+              placeholder="Ex: Como [usuário], quero [ação] para [benefício]..."
+            />
+          </div>
+          <div className="form-group">
+            <label>Analista(s) — somente membros do projeto</label>
+            <select
+              multiple
+              size={5}
+              value={form.analystIds || []}
+              onChange={e => setForm({ ...form, analystIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
+              style={{ minHeight: 90 }}
+            >
+              {analystOptionsForForm().map((person) => (
+                <option key={person._id} value={person._id}>{person.name}</option>
               ))}
-              {people.length === 0 && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastre pessoas em Pessoas.</span>}
-            </div>
+            </select>
+            {form.projectId && analystOptionsForForm().length === 0 && (
+              <p style={{ fontSize: 12, color: 'var(--warning)' }}>Adicione pessoas ao projeto em Projetos → Editar / Membros.</p>
+            )}
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Ctrl+clique para múltiplos.</p>
           </div>
           <button className="btn btn-primary" type="submit" disabled={saving}>
             {saving ? 'Salvando...' : 'Salvar feature'}
@@ -173,12 +193,13 @@ export default function FeaturesPage() {
           </div>
         </div>
 
-        {loading ? <p>Carregando...</p> : features.length === 0 ? <p>Nenhuma feature encontrada.</p> : (
+        {loading ? <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div> : features.length === 0 ? <p>Nenhuma feature encontrada.</p> : (
           <table>
             <thead>
               <tr>
                 <th>Feature</th>
                 <th>Analista(s)</th>
+                <th>História / Detalhamento</th>
                 <th>Horas est.</th>
                 <th>Horas lanç.</th>
                 <th>Progresso</th>
@@ -191,6 +212,9 @@ export default function FeaturesPage() {
                 <tr key={f._id}>
                   <td>{f.name}</td>
                   <td style={{ fontSize: 13 }}>{analystNames(f)}</td>
+                  <td style={{ fontSize: 13, maxWidth: 200 }} title={f.userStory || ''}>
+                    {f.userStory ? (f.userStory.length > 50 ? f.userStory.slice(0, 50) + '…' : f.userStory) : '—'}
+                  </td>
                   <td>{f.estimatedHours ?? 0}h</td>
                   <td>{f.loggedHours ?? 0}h</td>
                   <td>
@@ -205,7 +229,7 @@ export default function FeaturesPage() {
                       onClick={() => {
                         setEditingFeature(f);
                         const ids = (f.analystIds || []).map((a) => (typeof a === 'object' ? a._id : a));
-                        setEditingData({ loggedHours: f.loggedHours ?? 0, percentComplete: f.percentComplete ?? 0, status: f.status || 'backlog', details: f.details || '', analystIds: ids });
+                        setEditingData({ loggedHours: f.loggedHours ?? 0, percentComplete: f.percentComplete ?? 0, status: f.status || 'backlog', details: f.details || '', userStory: f.userStory || '', analystIds: ids });
                       }}>
                       Editar
                     </button>
@@ -238,19 +262,27 @@ export default function FeaturesPage() {
               </div>
             </div>
             <div className="form-group">
-              <label>Analista(s)</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {people.map((person) => (
-                  <label key={person._id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={(editingData.analystIds || []).includes(person._id)}
-                      onChange={() => toggleAnalyst('edit', editingData, person._id)}
-                    />
-                    {person.name}
-                  </label>
+              <label>Detalhamento / História de usuário</label>
+              <textarea
+                rows={3}
+                value={editingData.userStory}
+                onChange={e => setEditingData({ ...editingData, userStory: e.target.value })}
+                placeholder="Ex: Como [usuário], quero [ação] para [benefício]..."
+              />
+            </div>
+            <div className="form-group">
+              <label>Analista(s) — somente membros do projeto</label>
+              <select
+                multiple
+                size={5}
+                value={editingData.analystIds || []}
+                onChange={e => setEditingData({ ...editingData, analystIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
+                style={{ minHeight: 90 }}
+              >
+                {analystOptionsForEdit().map((person) => (
+                  <option key={person._id} value={person._id}>{person.name}</option>
                 ))}
-              </div>
+              </select>
             </div>
             <div className="form-group">
               <label>Observações / Detalhes</label>

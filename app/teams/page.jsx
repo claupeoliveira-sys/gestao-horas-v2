@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function TeamsPage() {
   const router = useRouter();
@@ -78,7 +79,7 @@ export default function TeamsPage() {
       <div className="card">
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de times</h3>
         {loading ? (
-          <p>Carregando...</p>
+          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : teams.length === 0 ? (
           <p>Nenhum time cadastrado.</p>
         ) : (

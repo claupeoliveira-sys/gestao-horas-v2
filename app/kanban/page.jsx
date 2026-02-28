@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 const COLUMNS = [
   { id: 'backlog', title: 'Backlog', status: 'backlog' },
@@ -129,7 +130,7 @@ export default function KanbanPage() {
 
       {loading ? (
         <div className="card">
-          <p>Carregando...</p>
+          <LoadingSpinner message="Aguarde, carregando..." />
         </div>
       ) : (
         <div

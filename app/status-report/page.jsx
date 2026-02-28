@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 const LOG_SOURCE_LABELS = {
   email: 'E-mail',
@@ -11,6 +12,7 @@ const LOG_SOURCE_LABELS = {
 
 export default function StatusReportPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
   const [features, setFeatures] = useState([]);
@@ -19,6 +21,11 @@ export default function StatusReportPage() {
   const [loading, setLoading] = useState(true);
   const [logForms, setLogForms] = useState({});
   const [savingLog, setSavingLog] = useState(null);
+
+  useEffect(() => {
+    const id = searchParams.get('project');
+    if (id) setSelectedProject(id);
+  }, [searchParams]);
 
   useEffect(() => {
     async function load() {
@@ -141,7 +148,7 @@ export default function StatusReportPage() {
         </div>
       </div>
 
-      {loading ? <div className="card"><p>Carregando...</p></div> :
+      {loading ? <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div> :
         filteredProjects.length === 0 ? <div className="card"><p>Nenhum projeto encontrado.</p></div> :
         filteredProjects.map(p => {
           const m = metrics(p._id);
