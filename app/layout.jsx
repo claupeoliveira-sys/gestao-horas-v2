@@ -19,6 +19,7 @@ export default function RootLayout({ children }) {
               <Link href="/projects" className="nav-link">Projetos</Link>
               <Link href="/epics" className="nav-link">Épicos</Link>
               <Link href="/features" className="nav-link">Features</Link>
+              <Link href="/kanban" className="nav-link">Kanban</Link>
               <Link href="/status-report" className="nav-link">Status Report</Link>
               <Link href="/people" className="nav-link">Pessoas</Link>
               <Link href="/teams" className="nav-link">Times</Link>

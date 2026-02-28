@@ -10,7 +10,9 @@ export async function GET(req) {
   const filter = {};
   if (epicId) filter.epicId = epicId;
   if (projectId) filter.projectId = projectId;
-  const features = await Feature.find(filter).sort({ createdAt: -1 });
+  const features = await Feature.find(filter)
+    .populate('analystIds', 'name email')
+    .sort({ createdAt: -1 });
   return NextResponse.json(features);
 }
 

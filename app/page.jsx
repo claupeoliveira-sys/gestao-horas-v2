@@ -26,6 +26,12 @@ export default function Home() {
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastrar e editar</p>
           </div>
         </Link>
+        <Link href="/kanban">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Kanban</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Quadro de tarefas</p>
+          </div>
+        </Link>
         <Link href="/status-report">
           <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
             <p style={{ fontWeight: 600 }}>Status Report</p>

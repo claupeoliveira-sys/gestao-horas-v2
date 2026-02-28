@@ -7,21 +7,23 @@ export default function FeaturesPage() {
   const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
+  const [people, setPeople] = useState([]);
   const [features, setFeatures] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedEpic, setSelectedEpic] = useState('');
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '' });
+  const [form, setForm] = useState({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', analystIds: [] });
   const [saving, setSaving] = useState(false);
   const [editingFeature, setEditingFeature] = useState(null);
-  const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '' });
+  const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', analystIds: [] });
   const [savingEdit, setSavingEdit] = useState(false);
 
   async function loadBase() {
-    const [pRes, eRes] = await Promise.all([fetch('/api/projects'), fetch('/api/epics')]);
-    const [p, e] = await Promise.all([pRes.json(), eRes.json()]);
+    const [pRes, eRes, peopleRes] = await Promise.all([fetch('/api/projects'), fetch('/api/epics'), fetch('/api/people')]);
+    const [p, e, peopleList] = await Promise.all([pRes.json(), eRes.json(), peopleRes.json()]);
     setProjects(p);
     setEpics(e);
+    setPeople(peopleList);
   }
 
   async function loadFeatures(filters = {}) {
@@ -43,10 +45,10 @@ export default function FeaturesPage() {
     await fetch('/api/features', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, estimatedHours: Number(form.estimatedHours || 0) }),
+      body: JSON.stringify({ ...form, estimatedHours: Number(form.estimatedHours || 0), analystIds: form.analystIds || [] }),
     });
     setSaving(false);
-    setForm({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '' });
+    setForm({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', analystIds: [] });
     loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
   }
 
@@ -60,6 +62,7 @@ export default function FeaturesPage() {
         percentComplete: Number(editingData.percentComplete || 0),
         status: editingData.status,
         details: editingData.details,
+        analystIds: editingData.analystIds || [],
       }),
     });
     setSavingEdit(false);
@@ -69,6 +72,21 @@ export default function FeaturesPage() {
 
   function statusLabel(s) {
     return { backlog: 'Backlog', in_progress: 'Em andamento', done: 'Concluída' }[s] || s;
+  }
+
+  function analystNames(f) {
+    const ids = f.analystIds || [];
+    return ids.map((a) => (typeof a === 'object' && a?.name ? a.name : people.find((p) => p._id === a)?.name || '—')).filter(Boolean).join(', ') || '—';
+  }
+
+  function toggleAnalyst(formKey, payload, id) {
+    const current = formKey === 'form' ? form.analystIds : editingData.analystIds;
+    const arr = Array.isArray(current) ? [...current] : [];
+    const idx = arr.indexOf(id);
+    if (idx >= 0) arr.splice(idx, 1);
+    else arr.push(id);
+    if (formKey === 'form') setForm({ ...form, analystIds: arr });
+    else setEditingData({ ...payload, analystIds: arr });
   }
 
   return (
@@ -116,6 +134,22 @@ export default function FeaturesPage() {
             <label>Horas estimadas</label>
             <input type="number" min="0" step="0.5" value={form.estimatedHours} onChange={e => setForm({ ...form, estimatedHours: e.target.value })} required />
           </div>
+          <div className="form-group">
+            <label>Analista(s)</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {people.map((person) => (
+                <label key={person._id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={(form.analystIds || []).includes(person._id)}
+                    onChange={() => toggleAnalyst('form', form, person._id)}
+                  />
+                  {person.name}
+                </label>
+              ))}
+              {people.length === 0 && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastre pessoas em Pessoas.</span>}
+            </div>
+          </div>
           <button className="btn btn-primary" type="submit" disabled={saving}>
             {saving ? 'Salvando...' : 'Salvar feature'}
           </button>
@@ -144,6 +178,7 @@ export default function FeaturesPage() {
             <thead>
               <tr>
                 <th>Feature</th>
+                <th>Analista(s)</th>
                 <th>Horas est.</th>
                 <th>Horas lanç.</th>
                 <th>Progresso</th>
@@ -155,6 +190,7 @@ export default function FeaturesPage() {
               {features.map(f => (
                 <tr key={f._id}>
                   <td>{f.name}</td>
+                  <td style={{ fontSize: 13 }}>{analystNames(f)}</td>
                   <td>{f.estimatedHours ?? 0}h</td>
                   <td>{f.loggedHours ?? 0}h</td>
                   <td>
@@ -166,7 +202,11 @@ export default function FeaturesPage() {
                   <td>{statusLabel(f.status)}</td>
                   <td>
                     <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: 12 }}
-                      onClick={() => { setEditingFeature(f); setEditingData({ loggedHours: f.loggedHours ?? 0, percentComplete: f.percentComplete ?? 0, status: f.status || 'backlog', details: f.details || '' }); }}>
+                      onClick={() => {
+                        setEditingFeature(f);
+                        const ids = (f.analystIds || []).map((a) => (typeof a === 'object' ? a._id : a));
+                        setEditingData({ loggedHours: f.loggedHours ?? 0, percentComplete: f.percentComplete ?? 0, status: f.status || 'backlog', details: f.details || '', analystIds: ids });
+                      }}>
                       Editar
                     </button>
                   </td>
@@ -195,6 +235,21 @@ export default function FeaturesPage() {
                   <option value="in_progress">Em andamento</option>
                   <option value="done">Concluída</option>
                 </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Analista(s)</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {people.map((person) => (
+                  <label key={person._id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={(editingData.analystIds || []).includes(person._id)}
+                      onChange={() => toggleAnalyst('edit', editingData, person._id)}
+                    />
+                    {person.name}
+                  </label>
+                ))}
               </div>
             </div>
             <div className="form-group">
