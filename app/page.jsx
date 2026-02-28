@@ -80,7 +80,7 @@ export default function Home() {
                       <h4 style={{ fontSize: 16, margin: 0 }}>{p.name}</h4>
                       {statusBadge(p.status)}
                     </div>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Cliente: {p.client}</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Cliente: {p.clientId?.name || p.client || '—'}</p>
                     <p style={{ fontSize: 13, marginBottom: 8 }}>Tarefas: <strong>{m.done}/{m.total}</strong></p>
                     <div style={{ marginBottom: 4 }}>
                       <div className="progress-bar" style={{ height: 10 }}>
@@ -96,6 +96,12 @@ export default function Home() {
 
           <h3 style={{ fontSize: 16, marginTop: 32, marginBottom: 16, color: 'var(--text-muted)' }}>Atalhos</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+            <Link href="/clients">
+              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+                <p style={{ fontWeight: 600 }}>Clientes</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de clientes</p>
+              </div>
+            </Link>
             <Link href="/projects">
               <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
                 <p style={{ fontWeight: 600 }}>Projetos</p>

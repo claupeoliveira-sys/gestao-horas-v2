@@ -7,6 +7,8 @@ import LoadingSpinner from '@/app/components/LoadingSpinner';
 const COLUMNS = [
   { id: 'backlog', title: 'Backlog', status: 'backlog' },
   { id: 'in_progress', title: 'Em andamento', status: 'in_progress' },
+  { id: 'block_internal', title: 'Imped. interno', status: 'block_internal' },
+  { id: 'block_client', title: 'Imped. cliente', status: 'block_client' },
   { id: 'done', title: 'Concluída', status: 'done' },
 ];
 
@@ -105,7 +107,7 @@ export default function KanbanPage() {
             Tarefas em aberto por status. Arraste o card para outra coluna para atualizar.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             style={{ minWidth: 200 }}
             value={selectedProject}
@@ -119,6 +121,14 @@ export default function KanbanPage() {
             ))}
           </select>
           <button
+            className="btn btn-outline"
+            type="button"
+            onClick={() => loadFeatures()}
+            disabled={loading}
+          >
+            Atualizar
+          </button>
+          <button
             className="btn btn-ghost"
             type="button"
             onClick={() => router.back()}
@@ -126,6 +136,12 @@ export default function KanbanPage() {
             ← Voltar
           </button>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16, padding: 12, background: 'rgba(37, 99, 235, 0.06)', border: '1px solid var(--border)' }}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+          As alterações feitas em outras telas (Features, etc.) não atualizam o quadro automaticamente. Use o botão <strong>Atualizar</strong> para buscar os dados mais recentes.
+        </p>
       </div>
 
       {loading ? (
@@ -136,7 +152,7 @@ export default function KanbanPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
             gap: 16,
             minHeight: 400,
           }}
@@ -205,18 +221,6 @@ export default function KanbanPage() {
                           ? new Date(f.createdAt).toLocaleDateString('pt-BR')
                           : '—'}
                       </span>
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      <select
-                        style={{ fontSize: 12, padding: '4px 8px' }}
-                        value={f.status || 'backlog'}
-                        onChange={(e) => moveCard(f._id, e.target.value)}
-                        disabled={updatingId === f._id}
-                      >
-                        <option value="backlog">Backlog</option>
-                        <option value="in_progress">Em andamento</option>
-                        <option value="done">Concluída</option>
-                      </select>
                     </div>
                   </div>
                 ))}

@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
-const STATUS_LABEL = { backlog: 'Backlog', in_progress: 'Em andamento', done: 'Concluída' };
+const STATUS_LABEL = {
+  backlog: 'Backlog',
+  in_progress: 'Em andamento',
+  block_internal: 'Imped. interno',
+  block_client: 'Imped. cliente',
+  done: 'Concluída',
+};
 
 export default function PainelAnalistasPage() {
   const router = useRouter();

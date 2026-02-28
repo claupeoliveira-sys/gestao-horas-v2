@@ -138,6 +138,11 @@ function StatusReportContent() {
     return allocations.filter((a) => (typeof a.projectId === 'object' ? a.projectId?._id : a.projectId) === projectId);
   }
 
+  function clientName(p) {
+    if (p.clientId && typeof p.clientId === 'object') return p.clientId.name;
+    return p.client || '—';
+  }
+
   function projectAlerts(proj, m) {
     const list = [];
     const members = proj.memberIds || [];
@@ -164,7 +169,7 @@ function StatusReportContent() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select style={{ minWidth: 220 }} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             <option value="">Todos os projetos</option>
-            {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({p.client})</option>)}
+            {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({clientName(p)})</option>)}
           </select>
           <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
             ← Voltar
@@ -181,7 +186,7 @@ function StatusReportContent() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div>
                   <h3 style={{ fontSize: 20 }}>{p.name}</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Cliente: <strong>{p.client}</strong></p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Cliente: <strong>{clientName(p)}</strong></p>
                   {p.description && <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>{p.description}</p>}
                 </div>
                 <div style={{ textAlign: 'right' }}>

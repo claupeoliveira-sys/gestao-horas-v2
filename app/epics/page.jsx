@@ -58,7 +58,7 @@ export default function EpicsPage() {
             <label>Projeto</label>
             <select value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} required>
               <option value="">Selecione...</option>
-              {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({p.client})</option>)}
+              {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})</option>)}
             </select>
           </div>
           <div className="form-group">

@@ -8,23 +8,38 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [people, setPeople] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [editingMemberIds, setEditingMemberIds] = useState([]);
   const [form, setForm] = useState({
-    name: '', client: '', description: '',
+    name: '', clientId: '', description: '',
     startDate: '', endDate: '', status: 'active',
     memberIds: [],
   });
 
   async function loadProjects() {
     setLoading(true);
-    const [pRes, peopleRes] = await Promise.all([fetch('/api/projects'), fetch('/api/people')]);
-    const [data, peopleData] = await Promise.all([pRes.json(), peopleRes.json()]);
+    const [pRes, peopleRes, clientsRes] = await Promise.all([
+      fetch('/api/projects'),
+      fetch('/api/people'),
+      fetch('/api/clients'),
+    ]);
+    const [data, peopleData, clientsData] = await Promise.all([
+      pRes.json(),
+      peopleRes.json(),
+      clientsRes.json(),
+    ]);
     setProjects(data);
     setPeople(peopleData);
+    setClients(clientsData);
     setLoading(false);
+  }
+
+  function clientName(p) {
+    if (p.clientId && typeof p.clientId === 'object') return p.clientId.name;
+    return p.client || '—';
   }
 
   useEffect(() => { loadProjects(); }, []);
@@ -35,10 +50,10 @@ export default function ProjectsPage() {
     await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, memberIds: form.memberIds || [] }),
+      body: JSON.stringify({ ...form, memberIds: form.memberIds || [], clientId: form.clientId || undefined }),
     });
     setSaving(false);
-    setForm({ name: '', client: '', description: '', startDate: '', endDate: '', status: 'active', memberIds: [] });
+    setForm({ name: '', clientId: '', description: '', startDate: '', endDate: '', status: 'active', memberIds: [] });
     loadProjects();
   }
 
@@ -100,7 +115,13 @@ export default function ProjectsPage() {
           </div>
           <div className="form-group">
             <label>Cliente</label>
-            <input value={form.client} onChange={e => setForm({ ...form, client: e.target.value })} required />
+            <select value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })} required>
+              <option value="">Selecione...</option>
+              {clients.map((c) => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </select>
+            {clients.length === 0 && <p style={{ fontSize: 12, color: 'var(--warning)' }}>Cadastre clientes em Clientes.</p>}
           </div>
           <div className="form-group">
             <label>Descrição</label>
@@ -164,7 +185,7 @@ export default function ProjectsPage() {
             {projects.map(p => (
               <tr key={p._id}>
                 <td>{p.name}</td>
-                <td>{p.client}</td>
+                <td>{clientName(p)}</td>
                 <td style={{ fontSize: 13 }}>{memberNames(p)}</td>
                 <td>{statusBadge(p.status)}</td>
                 <td>{p.startDate ? new Date(p.startDate).toLocaleDateString() : '-'}</td>

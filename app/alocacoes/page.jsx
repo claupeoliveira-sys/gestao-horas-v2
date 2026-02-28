@@ -190,7 +190,7 @@ export default function AlocacoesPage() {
                 <option value="">Selecione...</option>
                 {projects.map((p) => (
                   <option key={p._id} value={p._id}>
-                    {p.name} ({p.client})
+                    {p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})
                   </option>
                 ))}
               </select>

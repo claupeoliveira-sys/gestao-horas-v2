@@ -82,7 +82,13 @@ export default function FeaturesPage() {
   }
 
   function statusLabel(s) {
-    return { backlog: 'Backlog', in_progress: 'Em andamento', done: 'Concluída' }[s] || s;
+    return {
+      backlog: 'Backlog',
+      in_progress: 'Em andamento',
+      block_internal: 'Impedimento interno',
+      block_client: 'Impedimento cliente',
+      done: 'Concluída',
+    }[s] || s;
   }
 
   function analystNames(f) {
@@ -278,6 +284,8 @@ export default function FeaturesPage() {
                 <select value={editingData.status} onChange={e => setEditingData({ ...editingData, status: e.target.value })}>
                   <option value="backlog">Backlog</option>
                   <option value="in_progress">Em andamento</option>
+                  <option value="block_internal">Impedimento interno</option>
+                  <option value="block_client">Impedimento cliente</option>
                   <option value="done">Concluída</option>
                 </select>
               </div>
