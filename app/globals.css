@@ -267,6 +267,56 @@ tr:hover { background: var(--bg-subtle); }
   background: rgba(220, 38, 38, 0.08);
 }
 
+/* Dashboard executivo */
+.dashboard-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.dashboard-kpi .card {
+  padding: 18px 20px;
+  margin: 0;
+}
+.dashboard-kpi .kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.dashboard-kpi .kpi-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.health-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.health-dot.green { background: var(--success); }
+.health-dot.yellow { background: var(--warning); }
+.health-dot.red { background: var(--danger); }
+.dashboard-alerts {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dashboard-alerts li {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+.dashboard-alerts li.alert-danger { border-left: 3px solid var(--danger); background: #fef2f2; }
+.dashboard-alerts li.alert-warning { border-left: 3px solid var(--warning); background: #fffbeb; }
+
 .kanban-column-drag-over {
   border-color: var(--primary) !important;
   background: rgba(37, 99, 235, 0.05) !important;

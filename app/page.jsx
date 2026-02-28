@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from './components/LoadingSpinner';
 
+const DAYS_NEAR_DEADLINE = 15;
+
 function statusBadge(status) {
   const map = {
     active: <span className="badge badge-active">Ativo</span>,
@@ -14,10 +16,15 @@ function statusBadge(status) {
   return map[status] || null;
 }
 
+function getProjectId(ref) {
+  return ref && (typeof ref === 'object' ? ref._id : ref);
+}
+
 export default function Home() {
   const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [features, setFeatures] = useState([]);
+  const [constatacoes, setConstatacoes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,14 +33,19 @@ export default function Home() {
     setLoading(true);
     (async () => {
       try {
-        const [pRes, fRes] = await Promise.all([fetch('/api/projects'), fetch('/api/features')]);
-        const [p, f] = await Promise.all([pRes.json(), fRes.json()]);
+        const [pRes, fRes, cRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/features'),
+          fetch('/api/constatacoes'),
+        ]);
+        const [p, f, c] = await Promise.all([pRes.json(), fRes.json(), cRes.json()]);
         if (!cancelled) {
           setProjects(p);
           setFeatures(f);
+          setConstatacoes(c || []);
         }
       } catch (_) {
-        if (!cancelled) setProjects([]), setFeatures([]);
+        if (!cancelled) setProjects([]), setFeatures([]), setConstatacoes([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -42,18 +54,74 @@ export default function Home() {
   }, [pathname]);
 
   function projectMetrics(projectId) {
-    const list = features.filter((f) => f.projectId === projectId);
+    const list = features.filter((f) => getProjectId(f.projectId) === projectId);
     const total = list.length;
     const done = list.filter((f) => f.status === 'done').length;
+    const blocked = list.filter((f) => f.status === 'block_internal' || f.status === 'block_client').length;
+    const estimated = list.reduce((s, x) => s + (Number(x.estimatedHours) || 0), 0);
+    const logged = list.reduce((s, x) => s + (Number(x.loggedHours) || 0), 0);
     const avg = total === 0 ? 0 : Math.round(list.reduce((s, x) => s + (x.percentComplete || 0), 0) / total);
-    return { total, done, percent: avg };
+    return { total, done, blocked, percent: avg, estimated, logged };
   }
+
+  function projectHealth(p, metrics) {
+    if (p.status === 'finished') return 'green';
+    const members = p.memberIds || [];
+    const memberCount = Array.isArray(members) ? members.length : 0;
+    const endDate = p.endDate ? new Date(p.endDate) : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (memberCount === 0) return 'red';
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(0, 0, 0, 0);
+      if (end < today) return 'red';
+      const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+      if (daysLeft <= DAYS_NEAR_DEADLINE) return 'yellow';
+    }
+    if (metrics.blocked > 0) return 'yellow';
+    return 'green';
+  }
+
+  function buildAlerts() {
+    const list = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const near = new Date(today);
+    near.setDate(near.getDate() + DAYS_NEAR_DEADLINE);
+
+    projects.filter((p) => p.status === 'active').forEach((p) => {
+      const pid = p._id;
+      const name = p.name;
+      const members = p.memberIds || [];
+      const memberCount = Array.isArray(members) ? members.length : 0;
+      const endDate = p.endDate ? new Date(p.endDate) : null;
+      const m = projectMetrics(pid);
+
+      if (memberCount === 0) list.push({ type: 'danger', message: 'Sem membros no projeto', projectId: pid, projectName: name });
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0);
+        if (end < today) list.push({ type: 'danger', message: 'Prazo vencido', projectId: pid, projectName: name });
+        else if (end <= near) list.push({ type: 'warning', message: 'Prazo próximo', projectId: pid, projectName: name });
+      }
+      if (m.blocked > 0) list.push({ type: 'warning', message: `${m.blocked} tarefa(s) em impedimento`, projectId: pid, projectName: name });
+    });
+    return list;
+  }
+
+  const activeProjects = projects.filter((p) => p.status === 'active');
+  const totalEstimated = features.reduce((s, f) => s + (Number(f.estimatedHours) || 0), 0);
+  const totalLogged = features.reduce((s, f) => s + (Number(f.loggedHours) || 0), 0);
+  const alerts = buildAlerts();
+  const risksCount = constatacoes.filter((c) => c.type === 'risk').length;
 
   return (
     <div>
-      <h2 style={{ fontSize: 22, marginBottom: 8 }}>Bem-vindo ao Gestão de Horas</h2>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
-        Selecione uma opção no menu lateral ou acesse um projeto abaixo.
+      <h2 className="page-title" style={{ marginBottom: 4 }}>Dashboard executivo</h2>
+      <p className="page-subtitle" style={{ marginBottom: 28 }}>
+        Visão geral da saúde dos projetos, horas e alertas.
       </p>
 
       {loading ? (
@@ -80,25 +148,78 @@ export default function Home() {
         </div>
       ) : (
         <>
-          <h3 style={{ fontSize: 16, marginBottom: 16, color: 'var(--text-muted)' }}>Projetos</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          <div className="dashboard-kpi">
+            <div className="card">
+              <div className="kpi-value">{activeProjects.length}</div>
+              <div className="kpi-label">Projetos ativos</div>
+            </div>
+            <div className="card">
+              <div className="kpi-value">{totalEstimated.toFixed(0)}h</div>
+              <div className="kpi-label">Horas estimadas (total)</div>
+            </div>
+            <div className="card">
+              <div className="kpi-value">{totalLogged.toFixed(0)}h</div>
+              <div className="kpi-label">Horas realizadas (total)</div>
+            </div>
+            <div className="card">
+              <div className="kpi-value">{alerts.length}</div>
+              <div className="kpi-label">Alertas</div>
+            </div>
+            <div className="card">
+              <div className="kpi-value">{risksCount}</div>
+              <div className="kpi-label">Riscos (constatações)</div>
+            </div>
+          </div>
+
+          {alerts.length > 0 && (
+            <div className="card" style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 18, marginBottom: 14 }}>Alertas</h3>
+              <ul className="dashboard-alerts">
+                {alerts.slice(0, 15).map((a, i) => (
+                  <li key={i} className={a.type === 'danger' ? 'alert-danger' : 'alert-warning'}>
+                    <span className={`health-dot ${a.type === 'danger' ? 'red' : 'yellow'}`} />
+                    <span><strong>{a.projectName}</strong> — {a.message}</span>
+                    <Link href={`/status-report?project=${a.projectId}`} style={{ marginLeft: 'auto', fontSize: 13 }}>Ver projeto</Link>
+                  </li>
+                ))}
+              </ul>
+              {alerts.length > 15 && <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>+ {alerts.length - 15} alertas.</p>}
+            </div>
+          )}
+
+          <h3 style={{ fontSize: 16, marginBottom: 16, color: 'var(--text-muted)' }}>Saúde dos projetos</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
             {projects.map((p) => {
               const m = projectMetrics(p._id);
+              const health = projectHealth(p, m);
               return (
-                <Link key={p._id} href={`/status-report?project=${p._id}`} style={{ textDecoration: 'none', color: 'inherit' }} title="Ver Status Report deste projeto">
-                  <div className="card" style={{ cursor: 'pointer', height: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <h4 style={{ fontSize: 16, margin: 0 }}>{p.name}</h4>
-                      {statusBadge(p.status)}
+                <Link key={p._id} href={`/status-report?project=${p._id}`} style={{ textDecoration: 'none', color: 'inherit' }} title="Ver Status Report">
+                  <div className="card" style={{ cursor: 'pointer', height: '100%', borderLeft: `4px solid ${health === 'red' ? 'var(--danger)' : health === 'yellow' ? 'var(--warning)' : 'var(--success)'}` }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
+                      <span className={`health-dot ${health}`} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <h4 style={{ fontSize: 16, margin: 0 }}>{p.name}</h4>
+                          {statusBadge(p.status)}
+                        </div>
+                        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Cliente: {p.clientId?.name || p.client || '—'}</p>
+                      </div>
                     </div>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Cliente: {p.clientId?.name || p.client || '—'}</p>
-                    <p style={{ fontSize: 13, marginBottom: 8 }}>Tarefas: <strong>{m.done}/{m.total}</strong></p>
-                    <div style={{ marginBottom: 4 }}>
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 13 }}>
+                      <span>Tarefas: <strong>{m.done}/{m.total}</strong></span>
+                      <span>Horas: <strong>{m.logged.toFixed(0)}h</strong> / {m.estimated.toFixed(0)}h</span>
+                    </div>
+                    <div style={{ marginBottom: 6 }}>
                       <div className="progress-bar" style={{ height: 10 }}>
                         <div className="progress-fill" style={{ width: `${m.percent}%` }} />
                       </div>
                     </div>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)' }}><strong>{m.percent}%</strong> concluído</p>
+                    {p.endDate && (
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                        Prazo: {new Date(p.endDate).toLocaleDateString('pt-BR')}
+                      </p>
+                    )}
                   </div>
                 </Link>
               );
@@ -131,19 +252,19 @@ export default function Home() {
                 <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Quadro de tarefas</p>
               </div>
             </Link>
-<Link href="/status-report">
-          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-            <p style={{ fontWeight: 600 }}>Status Report</p>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Visão executiva</p>
-          </div>
-        </Link>
-        <Link href="/painel-analistas">
-          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-            <p style={{ fontWeight: 600 }}>Painel Analistas</p>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Projetos, tarefas e alocação</p>
-          </div>
-        </Link>
-        <Link href="/people">
+            <Link href="/status-report">
+              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+                <p style={{ fontWeight: 600 }}>Status Report</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Visão executiva</p>
+              </div>
+            </Link>
+            <Link href="/painel-analistas">
+              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+                <p style={{ fontWeight: 600 }}>Painel Analistas</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Projetos, tarefas e alocação</p>
+              </div>
+            </Link>
+            <Link href="/people">
               <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
                 <p style={{ fontWeight: 600 }}>Pessoas</p>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de pessoas</p>
