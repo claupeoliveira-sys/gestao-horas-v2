@@ -13,11 +13,14 @@ export default function PeoplePage() {
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [filterActive, setFilterActive] = useState('active'); // 'active' | 'inactive' | 'all'
+  const [filterTeamId, setFilterTeamId] = useState('');
   const [form, setForm] = useState({
     name: '',
     email: '',
     role: '',
     teamId: '',
+    active: true,
   });
 
   async function loadPeople() {
@@ -39,7 +42,7 @@ export default function PeoplePage() {
 
   function openNew() {
     setEditingId(null);
-    setForm({ name: '', email: '', role: '', teamId: '' });
+    setForm({ name: '', email: '', role: '', teamId: '', active: true });
     setFormOpen(true);
   }
 
@@ -51,6 +54,7 @@ export default function PeoplePage() {
       email: p.email || '',
       role: p.role || '',
       teamId: teamId || '',
+      active: p.active !== false,
     });
     setFormOpen(true);
   }
@@ -59,7 +63,7 @@ export default function PeoplePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const body = { ...form, teamId: form.teamId || undefined };
+      const body = { ...form, teamId: form.teamId || undefined, active: form.active };
       if (editingId) {
         await fetch(`/api/people/${editingId}`, {
           method: 'PUT',
@@ -74,13 +78,23 @@ export default function PeoplePage() {
           body: JSON.stringify(body),
         });
       }
-      setForm({ name: '', email: '', role: '', teamId: '' });
+      setForm({ name: '', email: '', role: '', teamId: '', active: true });
       setFormOpen(false);
       loadPeople();
     } finally {
       setSaving(false);
     }
   }
+
+  const filteredPeople = people.filter((p) => {
+    if (filterActive === 'active' && p.active === false) return false;
+    if (filterActive === 'inactive' && p.active !== false) return false;
+    if (filterTeamId) {
+      const tid = typeof p.teamId === 'object' ? p.teamId?._id : p.teamId;
+      if (tid !== filterTeamId) return false;
+    }
+    return true;
+  });
 
   async function handleRemove(id, name) {
     if (!confirm(`Remover a pessoa "${name}"? Ela deixará de aparecer em projetos e features. Esta ação não pode ser desfeita.`)) return;
@@ -113,11 +127,26 @@ export default function PeoplePage() {
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de pessoas</h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 18, margin: 0 }}>Lista de pessoas</h3>
+          <select value={filterActive} onChange={e => setFilterActive(e.target.value)} style={{ minWidth: 140 }}>
+            <option value="active">Ativas</option>
+            <option value="inactive">Inativas</option>
+            <option value="all">Todas</option>
+          </select>
+          <select value={filterTeamId} onChange={e => setFilterTeamId(e.target.value)} style={{ minWidth: 180 }}>
+            <option value="">Todos os times</option>
+            {teams.map(t => (
+              <option key={t._id} value={t._id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
         {loading ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : people.length === 0 ? (
           <p>Nenhuma pessoa cadastrada. Use o botão abaixo para cadastrar.</p>
+        ) : filteredPeople.length === 0 ? (
+          <p>Nenhuma pessoa encontrada com os filtros selecionados.</p>
         ) : (
           <table>
             <thead>
@@ -126,17 +155,19 @@ export default function PeoplePage() {
                 <th>E-mail</th>
                 <th>Papel</th>
                 <th>Time</th>
+                <th>Ativo</th>
                 <th>Criado em</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {people.map(p => (
+              {filteredPeople.map(p => (
                 <tr key={p._id}>
                   <td>{p.name}</td>
                   <td>{p.email || '—'}</td>
                   <td>{p.role || '—'}</td>
                   <td>{teamName(p)}</td>
+                  <td>{p.active !== false ? <span className="badge badge-active">Sim</span> : <span className="badge badge-paused">Não</span>}</td>
                   <td>{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}</td>
                   <td>
                     <div className="table-actions">
@@ -154,12 +185,12 @@ export default function PeoplePage() {
       <div className="card">
         <button
           type="button"
-          className="collapsible-trigger"
+          className="btn-add-collapse"
           aria-expanded={formOpen}
           onClick={() => { setFormOpen(!formOpen); if (!formOpen) openNew(); }}
         >
+          <span className="btn-add-icon">+</span>
           {editingId ? 'Editar pessoa' : 'Cadastrar nova pessoa'}
-          <span className="chevron">▼</span>
         </button>
         {formOpen && (
           <div className="collapsible-content">
@@ -185,6 +216,15 @@ export default function PeoplePage() {
                       <option key={t._id} value={t._id}>{t.name}</option>
                     ))}
                   </select>
+                </div>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="person-active"
+                    checked={form.active}
+                    onChange={e => setForm({ ...form, active: e.target.checked })}
+                  />
+                  <label htmlFor="person-active" style={{ marginBottom: 0 }}>Ativo</label>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-primary" type="submit" disabled={saving}>

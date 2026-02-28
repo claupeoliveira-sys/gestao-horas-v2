@@ -245,6 +245,42 @@ tr:hover { background: var(--bg-subtle); }
 .collapsible-trigger[aria-expanded="true"] .chevron {
   transform: rotate(180deg);
 }
+
+.btn-add-collapse {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.btn-add-collapse:hover {
+  background: rgba(37, 99, 235, 0.06);
+  border-color: var(--primary);
+}
+.btn-add-collapse[aria-expanded="true"] {
+  background: rgba(37, 99, 235, 0.08);
+  border-style: solid;
+}
+.btn-add-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 600;
+}
 .collapsible-content {
   overflow: hidden;
   transition: max-height 0.25s ease-out;

@@ -19,6 +19,10 @@ export async function GET(req) {
 export async function POST(req) {
   await connectDB();
   const body = await req.json();
+  if (!body.code && body.projectId) {
+    const count = await Feature.countDocuments({ projectId: body.projectId });
+    body.code = `FEAT-${String(count + 1).padStart(3, '0')}`;
+  }
   const feature = await Feature.create(body);
   return NextResponse.json(feature, { status: 201 });
 }

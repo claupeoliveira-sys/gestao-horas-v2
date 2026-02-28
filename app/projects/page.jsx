@@ -16,6 +16,8 @@ export default function ProjectsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [editingMemberIds, setEditingMemberIds] = useState([]);
+  const [filterClient, setFilterClient] = useState('');
+  const [filterStatus, setFilterStatus] = useState('active'); // 'active' | 'inactive' | 'all'
   const [form, setForm] = useState({
     name: '', clientId: '', description: '',
     startDate: '', endDate: '', status: 'active',
@@ -117,6 +119,13 @@ export default function ProjectsPage() {
     return map[status] || null;
   }
 
+  const filteredProjects = projects.filter((p) => {
+    if (filterClient && (p.clientId?._id || p.clientId) !== filterClient) return false;
+    if (filterStatus === 'active') return p.status === 'active';
+    if (filterStatus === 'inactive') return p.status === 'paused' || p.status === 'finished';
+    return true;
+  });
+
   return (
     <div>
       <div className="page-header">
@@ -130,11 +139,26 @@ export default function ProjectsPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de projetos</h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 18, margin: 0 }}>Lista de projetos</h3>
+          <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={{ minWidth: 180 }}>
+            <option value="">Todos os clientes</option>
+            {clients.map((c) => (
+              <option key={c._id} value={c._id}>{c.name}</option>
+            ))}
+          </select>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ minWidth: 140 }}>
+            <option value="active">Ativos</option>
+            <option value="inactive">Inativos</option>
+            <option value="all">Todos</option>
+          </select>
+        </div>
         {(loading || !dataLoaded) ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : projects.length === 0 ? (
           <p>Nenhum projeto cadastrado. Use o botão abaixo para cadastrar um projeto.</p>
+        ) : filteredProjects.length === 0 ? (
+          <p>Nenhum projeto encontrado com os filtros selecionados.</p>
         ) : (
           <table>
             <thead>
@@ -149,7 +173,7 @@ export default function ProjectsPage() {
               </tr>
             </thead>
             <tbody>
-              {projects.map(p => (
+              {filteredProjects.map(p => (
                 <tr key={p._id}>
                   <td>{p.name}</td>
                   <td>{clientName(p)}</td>
@@ -208,12 +232,12 @@ export default function ProjectsPage() {
       <div className="card">
         <button
           type="button"
-          className="collapsible-trigger"
+          className="btn-add-collapse"
           aria-expanded={formOpen}
           onClick={() => setFormOpen(!formOpen)}
         >
+          <span className="btn-add-icon">+</span>
           Cadastrar novo projeto
-          <span className="chevron">▼</span>
         </button>
         {formOpen && (
           <div className="collapsible-content">

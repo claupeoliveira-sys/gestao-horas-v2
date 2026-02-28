@@ -145,12 +145,12 @@ export default function ClientsPage() {
       <div className="card">
         <button
           type="button"
-          className="collapsible-trigger"
+          className="btn-add-collapse"
           aria-expanded={formOpen}
           onClick={() => { setFormOpen(!formOpen); if (!formOpen) openNew(); }}
         >
+          <span className="btn-add-icon">+</span>
           {editingId ? 'Editar cliente' : 'Cadastrar novo cliente'}
-          <span className="chevron">▼</span>
         </button>
         {formOpen && (
           <div className="collapsible-content">

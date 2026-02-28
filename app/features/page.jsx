@@ -8,9 +8,11 @@ export default function FeaturesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState([]);
   const [epics, setEpics] = useState([]);
   const [people, setPeople] = useState([]);
   const [features, setFeatures] = useState([]);
+  const [selectedClient, setSelectedClient] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedEpic, setSelectedEpic] = useState('');
   const [loading, setLoading] = useState(true);
@@ -18,25 +20,32 @@ export default function FeaturesPage() {
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingFeature, setEditingFeature] = useState(null);
-  const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', userStory: '', analystIds: [] });
+  const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', userStory: '', analystIds: [], attachments: [] });
   const [savingEdit, setSavingEdit] = useState(false);
   const [featureHistory, setFeatureHistory] = useState([]);
 
+  function getProjectId(ref) {
+    return ref && (typeof ref === 'object' ? ref._id : ref);
+  }
+
   async function loadBase() {
-    const [pRes, eRes, peopleRes] = await Promise.all([fetch('/api/projects'), fetch('/api/epics'), fetch('/api/people')]);
-    const [p, e, peopleList] = await Promise.all([pRes.json(), eRes.json(), peopleRes.json()]);
+    const [pRes, cRes, eRes, peopleRes] = await Promise.all([
+      fetch('/api/projects'),
+      fetch('/api/clients'),
+      fetch('/api/epics'),
+      fetch('/api/people'),
+    ]);
+    const [p, c, e, peopleList] = await Promise.all([pRes.json(), cRes.json(), eRes.json(), peopleRes.json()]);
     setProjects(p);
+    setClients(c || []);
     setEpics(e);
     setPeople(peopleList);
   }
 
-  async function loadFeatures(filters = {}) {
+  async function loadFeatures() {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filters.projectId) params.append('projectId', filters.projectId);
-      if (filters.epicId) params.append('epicId', filters.epicId);
-      const res = await fetch('/api/features?' + params.toString());
+      const res = await fetch('/api/features');
       setFeatures(await res.json());
     } finally {
       setLoading(false);
@@ -45,9 +54,8 @@ export default function FeaturesPage() {
 
   useEffect(() => {
     if (pathname !== '/features') return;
-    loadBase().then(() => loadFeatures({ projectId: selectedProject, epicId: selectedEpic }));
+    loadBase().then(loadFeatures);
   }, [pathname]);
-  useEffect(() => { loadFeatures({ projectId: selectedProject, epicId: selectedEpic }); }, [selectedProject, selectedEpic]);
 
   useEffect(() => {
     if (!editingFeature?._id) { setFeatureHistory([]); return; }
@@ -67,7 +75,7 @@ export default function FeaturesPage() {
       });
       setForm({ projectId: '', epicId: '', name: '', description: '', estimatedHours: '', userStory: '', analystIds: [] });
       setFormOpen(false);
-      loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
+      loadFeatures();
     } finally {
       setSaving(false);
     }
@@ -79,7 +87,7 @@ export default function FeaturesPage() {
     try {
       await fetch(`/api/features/${id}`, { method: 'DELETE' });
       setEditingFeature(null);
-      loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
+      loadFeatures();
     } finally {
       setSavingEdit(false);
     }
@@ -97,12 +105,13 @@ export default function FeaturesPage() {
         details: editingData.details,
         userStory: editingData.userStory || '',
         analystIds: editingData.analystIds || [],
+        attachments: (editingData.attachments || []).filter((a) => a.name || a.url),
       }),
     });
     setSavingEdit(false);
     setEditingFeature(null);
     setFeatureHistory([]);
-    loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
+    loadFeatures();
   }
 
   function statusLabel(s) {
@@ -126,15 +135,39 @@ export default function FeaturesPage() {
     return members.map((m) => (typeof m === 'object' ? m : { _id: m, name: people.find((p) => p._id === m)?.name || '—' }));
   }
 
+  const projectIdsForClient = selectedClient
+    ? projects.filter((p) => (p.clientId?._id || p.clientId) === selectedClient).map((p) => p._id)
+    : [];
+  const filteredFeatures = selectedClient
+    ? features.filter((f) => projectIdsForClient.includes(getProjectId(f.projectId)))
+    : features;
+  const featuresByEpic = filteredFeatures.reduce((acc, f) => {
+    const eid = (typeof f.epicId === 'object' ? f.epicId?._id : f.epicId) || 'none';
+    if (!acc[eid]) acc[eid] = [];
+    acc[eid].push(f);
+    return acc;
+  }, {});
+  const epicOrder = [...new Set(filteredFeatures.map((f) => (typeof f.epicId === 'object' ? f.epicId?._id : f.epicId)).filter(Boolean))];
+  function epicName(epicId) {
+    const epic = epics.find((e) => e._id === epicId);
+    return (epic && epic.name) || '—';
+  }
+
   function analystOptionsForForm() {
     if (!form.projectId) return [];
-    return projectMembers(form.projectId);
+    return projectMembers(form.projectId).filter((m) => {
+      const p = people.find((x) => x._id === m._id);
+      return !p || p.active !== false;
+    });
   }
 
   function analystOptionsForEdit() {
     const projectId = editingFeature?.projectId;
     if (!projectId) return [];
-    return projectMembers(typeof projectId === 'object' ? projectId._id : projectId);
+    return projectMembers(typeof projectId === 'object' ? projectId._id : projectId).filter((m) => {
+      const p = people.find((x) => x._id === m._id);
+      return !p || p.active !== false;
+    });
   }
 
   return (
@@ -150,70 +183,83 @@ export default function FeaturesPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ fontSize: 18 }}>Lista de features</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setSelectedEpic(''); }}>
-              <option value="">Todos projetos</option>
-              {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-            </select>
-            <select value={selectedEpic} onChange={e => setSelectedEpic(e.target.value)}>
-              <option value="">Todos épicos</option>
-              {epics.filter(e => !selectedProject || e.projectId === selectedProject).map(e => (
-                <option key={e._id} value={e._id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 18, margin: 0 }}>Lista de features</h3>
+          <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} style={{ minWidth: 220 }}>
+            <option value="">Selecione um cliente...</option>
+            {clients.map((c) => (
+              <option key={c._id} value={c._id}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
-        {loading ? <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div> : features.length === 0 ? <p>Nenhuma feature encontrada. Use o botão abaixo para cadastrar.</p> : (
-          <table>
-            <thead>
-              <tr>
-                <th>Feature</th>
-                <th>Analista(s)</th>
-                <th>História / Detalhamento</th>
-                <th>Horas est.</th>
-                <th>Horas lanç.</th>
-                <th>Progresso</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {features.map(f => (
-                <tr key={f._id}>
-                  <td>{f.name}</td>
-                  <td style={{ fontSize: 13 }}>{analystNames(f)}</td>
-                  <td style={{ fontSize: 13, maxWidth: 200 }} title={f.userStory || ''}>
-                    {f.userStory ? (f.userStory.length > 50 ? f.userStory.slice(0, 50) + '…' : f.userStory) : '—'}
-                  </td>
-                  <td>{f.estimatedHours ?? 0}h</td>
-                  <td>{f.loggedHours ?? 0}h</td>
-                  <td>
-                    <div className="progress-bar" style={{ minWidth: 80 }}>
-                      <div className="progress-fill" style={{ width: `${f.percentComplete || 0}%` }} />
-                    </div>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.percentComplete || 0}%</span>
-                  </td>
-                  <td>{statusLabel(f.status)}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: 12 }}
-                        onClick={() => {
-                          setEditingFeature(f);
-                          const ids = (f.analystIds || []).map((a) => (typeof a === 'object' ? a._id : a));
-                          setEditingData({ loggedHours: f.loggedHours ?? 0, percentComplete: f.percentComplete ?? 0, status: f.status || 'backlog', details: f.details || '', userStory: f.userStory || '', analystIds: ids });
-                        }}>
-                        Editar
-                      </button>
-                      <button type="button" className="btn btn-danger" onClick={() => handleRemoveFeature(f._id, f.name)} disabled={savingEdit}>Remover</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {!selectedClient ? (
+          <p style={{ color: 'var(--text-muted)' }}>Selecione um cliente acima para listar as features agrupadas por épico.</p>
+        ) : loading ? (
+          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
+        ) : filteredFeatures.length === 0 ? (
+          <p>Nenhuma feature encontrada para os projetos deste cliente.</p>
+        ) : (
+          <>
+            {epicOrder.map((epicId) => (
+              <div key={epicId} style={{ marginBottom: 24 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10 }}>Épico: {epicName(epicId)}</h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Feature</th>
+                      <th>Analista(s)</th>
+                      <th>Horas est.</th>
+                      <th>Horas lanç.</th>
+                      <th>Progresso</th>
+                      <th>Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(featuresByEpic[epicId] || []).map((f) => (
+                      <tr key={f._id}>
+                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{f.code || '—'}</td>
+                        <td>{f.name}</td>
+                        <td style={{ fontSize: 13 }}>{analystNames(f)}</td>
+                        <td>{f.estimatedHours ?? 0}h</td>
+                        <td>{f.loggedHours ?? 0}h</td>
+                        <td>
+                          <div className="progress-bar" style={{ minWidth: 80 }}>
+                            <div className="progress-fill" style={{ width: `${f.percentComplete || 0}%` }} />
+                          </div>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.percentComplete || 0}%</span>
+                        </td>
+                        <td>{statusLabel(f.status)}</td>
+                        <td>
+                          <div className="table-actions">
+                            <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: 12 }}
+                              onClick={() => {
+                                setEditingFeature(f);
+                        const ids = (f.analystIds || []).map((a) => (typeof a === 'object' ? a._id : a));
+                        setEditingData({
+                          loggedHours: f.loggedHours ?? 0,
+                          percentComplete: f.percentComplete ?? 0,
+                          status: f.status || 'backlog',
+                          details: f.details || '',
+                          userStory: f.userStory || '',
+                          analystIds: ids,
+                          attachments: (f.attachments && f.attachments.length) ? f.attachments.map((a) => ({ name: a.name || '', url: a.url || '' })) : [],
+                        });
+                              }}>
+                              Editar
+                            </button>
+                            <button type="button" className="btn btn-danger" onClick={() => handleRemoveFeature(f._id, f.name)} disabled={savingEdit}>Remover</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>
         )}
 
         {editingFeature && (
@@ -278,6 +324,35 @@ export default function FeaturesPage() {
               <label>Observações / Detalhes</label>
               <textarea rows={3} value={editingData.details} onChange={e => setEditingData({ ...editingData, details: e.target.value })} />
             </div>
+            <div className="form-group">
+              <label>Anexos / Arquivos (nome e link URL)</label>
+              {(editingData.attachments || []).map((att, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <input
+                    placeholder="Nome"
+                    value={att.name}
+                    onChange={e => {
+                      const next = [...(editingData.attachments || [])];
+                      next[idx] = { ...next[idx], name: e.target.value };
+                      setEditingData({ ...editingData, attachments: next });
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    placeholder="URL"
+                    value={att.url}
+                    onChange={e => {
+                      const next = [...(editingData.attachments || [])];
+                      next[idx] = { ...next[idx], url: e.target.value };
+                      setEditingData({ ...editingData, attachments: next });
+                    }}
+                    style={{ flex: 2 }}
+                  />
+                  <button type="button" className="btn btn-outline" onClick={() => setEditingData({ ...editingData, attachments: (editingData.attachments || []).filter((_, i) => i !== idx) })}>Remover</button>
+                </div>
+              ))}
+              <button type="button" className="btn btn-outline" onClick={() => setEditingData({ ...editingData, attachments: [...(editingData.attachments || []), { name: '', url: '' }] })}>+ Adicionar anexo</button>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary" onClick={saveEdit} disabled={savingEdit}>
                 {savingEdit ? 'Salvando...' : 'Salvar alterações'}
@@ -291,12 +366,12 @@ export default function FeaturesPage() {
       <div className="card">
         <button
           type="button"
-          className="collapsible-trigger"
+          className="btn-add-collapse"
           aria-expanded={formOpen}
           onClick={() => setFormOpen(!formOpen)}
         >
+          <span className="btn-add-icon">+</span>
           Cadastrar feature
-          <span className="chevron">▼</span>
         </button>
         {formOpen && (
           <div className="collapsible-content">

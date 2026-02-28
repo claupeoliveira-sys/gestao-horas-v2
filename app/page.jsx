@@ -163,11 +163,11 @@ export default function Home() {
             <select
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
-              style={{ minWidth: 220 }}
+              style={{ minWidth: 280 }}
             >
               <option value="">Todos os projetos</option>
               {projects.map((p) => (
-                <option key={p._id} value={p._id}>{p.name}</option>
+                <option key={p._id} value={p._id}>{(p.clientId?.name || p.client || '—')} — {p.name}</option>
               ))}
             </select>
           </div>
@@ -223,10 +223,9 @@ export default function Home() {
                       <span className={`health-dot ${health}`} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                          <h4 style={{ fontSize: 16, margin: 0 }}>{p.name}</h4>
+                          <h4 style={{ fontSize: 16, margin: 0 }}>{(p.clientId?.name || p.client || '—')} — {p.name}</h4>
                           {statusBadge(p.status)}
                         </div>
-                        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Cliente: {p.clientId?.name || p.client || '—'}</p>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 13 }}>

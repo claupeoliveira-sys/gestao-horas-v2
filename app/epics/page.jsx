@@ -9,19 +9,29 @@ export default function EpicsPage() {
   const pathname = usePathname();
   const [projects, setProjects] = useState([]);
   const [epics, setEpics] = useState([]);
+  const [selectedProject, setSelectedProject] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ projectId: '', name: '', description: '', estimatedHours: '' });
 
-  async function loadData() {
+  async function loadProjects() {
+    try {
+      const res = await fetch('/api/projects');
+      const p = await res.json();
+      setProjects(p);
+    } catch (_) {
+      setProjects([]);
+    }
+  }
+
+  async function loadEpics(projectId) {
     setLoading(true);
     try {
-      const [pRes, eRes] = await Promise.all([fetch('/api/projects'), fetch('/api/epics')]);
-      const [p, e] = await Promise.all([pRes.json(), eRes.json()]);
-      setProjects(p);
-      setEpics(e);
+      const res = await fetch('/api/epics?projectId=' + (projectId || ''));
+      const e = await res.json();
+      setEpics(projectId ? e : []);
     } finally {
       setLoading(false);
     }
@@ -29,8 +39,13 @@ export default function EpicsPage() {
 
   useEffect(() => {
     if (pathname !== '/epics') return;
-    loadData();
+    loadProjects();
   }, [pathname]);
+
+  useEffect(() => {
+    if (pathname !== '/epics') return;
+    loadEpics(selectedProject);
+  }, [pathname, selectedProject]);
 
   function openNew() {
     setEditingId(null);
@@ -71,7 +86,8 @@ export default function EpicsPage() {
       }
       setForm({ projectId: '', name: '', description: '', estimatedHours: '' });
       setFormOpen(false);
-      loadData();
+      loadEpics(selectedProject);
+      loadProjects();
     } finally {
       setSaving(false);
     }
@@ -84,7 +100,7 @@ export default function EpicsPage() {
       await fetch(`/api/epics/${id}`, { method: 'DELETE' });
       if (editingId === id) setEditingId(null);
       setFormOpen(false);
-      loadData();
+      loadEpics(selectedProject);
     } finally {
       setSaving(false);
     }
@@ -107,11 +123,21 @@ export default function EpicsPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de épicos</h3>
-        {loading ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 18, margin: 0 }}>Lista de épicos</h3>
+          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{ minWidth: 220 }}>
+            <option value="">Selecione um projeto...</option>
+            {projects.map((p) => (
+              <option key={p._id} value={p._id}>{p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})</option>
+            ))}
+          </select>
+        </div>
+        {!selectedProject ? (
+          <p style={{ color: 'var(--text-muted)' }}>Selecione um projeto acima para listar os épicos disponíveis.</p>
+        ) : loading ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : epics.length === 0 ? (
-          <p>Nenhum épico cadastrado. Use o botão abaixo para cadastrar um épico.</p>
+          <p>Nenhum épico cadastrado para este projeto. Use o botão abaixo para cadastrar um épico.</p>
         ) : (
           <table>
             <thead>
@@ -144,12 +170,12 @@ export default function EpicsPage() {
       <div className="card">
         <button
           type="button"
-          className="collapsible-trigger"
+          className="btn-add-collapse"
           aria-expanded={formOpen}
           onClick={() => { setFormOpen(!formOpen); if (!formOpen) openNew(); }}
         >
+          <span className="btn-add-icon">+</span>
           {editingId ? 'Editar épico' : 'Cadastrar épico'}
-          <span className="chevron">▼</span>
         </button>
         {formOpen && (
           <div className="collapsible-content">

@@ -137,12 +137,12 @@ export default function TeamsPage() {
       <div className="card">
         <button
           type="button"
-          className="collapsible-trigger"
+          className="btn-add-collapse"
           aria-expanded={formOpen}
           onClick={() => { setFormOpen(!formOpen); if (!formOpen) openNew(); }}
         >
+          <span className="btn-add-icon">+</span>
           {editingId ? 'Editar time' : 'Cadastrar novo time'}
-          <span className="chevron">▼</span>
         </button>
         {formOpen && (
           <div className="collapsible-content">

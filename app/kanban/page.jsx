@@ -20,6 +20,7 @@ export default function KanbanPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [infoFeature, setInfoFeature] = useState(null);
 
   async function loadFeatures() {
     setLoading(true);
@@ -207,31 +208,80 @@ export default function KanbanPage() {
                       padding: 12,
                       cursor: updatingId === f._id ? 'wait' : 'grab',
                       opacity: updatingId === f._id ? 0.8 : 1,
+                      position: 'relative',
                     }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
-                      {f.name}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{f.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                          Analista(s): {analystNames(f)}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                          <span>Est.: {f.estimatedHours ?? 0}h</span>
+                          <span>Lanç.: {f.loggedHours ?? 0}h</span>
+                          <span>{f.createdAt ? new Date(f.createdAt).toLocaleDateString('pt-BR') : '—'}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setInfoFeature(infoFeature?._id === f._id ? null : f); }}
+                        style={{
+                          flexShrink: 0,
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-subtle)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: 'var(--text-muted)',
+                        }}
+                        title="Ver detalhes"
+                      >
+                        i
+                      </button>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-                      Analista(s): {analystNames(f)}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: 'var(--text-muted)',
-                        display: 'flex',
-                        gap: 12,
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <span>Est.: {f.estimatedHours ?? 0}h</span>
-                      <span>Lanç.: {f.loggedHours ?? 0}h</span>
-                      <span>
-                        {f.createdAt
-                          ? new Date(f.createdAt).toLocaleDateString('pt-BR')
-                          : '—'}
-                      </span>
-                    </div>
+                    {infoFeature?._id === f._id && (
+                      <div
+                        className="card"
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: 8,
+                          zIndex: 10,
+                          padding: 14,
+                          fontSize: 13,
+                          boxShadow: 'var(--shadow-lg)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: 8 }}>Detalhes da tarefa</div>
+                        <p style={{ margin: '4px 0' }}><strong>ID:</strong> {f.code || '—'}</p>
+                        <p style={{ margin: '4px 0' }}><strong>Descrição:</strong> {f.description || '—'}</p>
+                        <p style={{ margin: '4px 0' }}><strong>História de usuário:</strong> {f.userStory || '—'}</p>
+                        <p style={{ margin: '4px 0' }}><strong>Horas est./lanç.:</strong> {f.estimatedHours ?? 0}h / {f.loggedHours ?? 0}h</p>
+                        <p style={{ margin: '4px 0' }}><strong>Conclusão:</strong> {f.percentComplete ?? 0}%</p>
+                        {(f.attachments && f.attachments.length > 0) && (
+                          <p style={{ margin: '4px 0' }}>
+                            <strong>Anexos:</strong>{' '}
+                            {f.attachments.map((a, i) => (
+                              <span key={i}>
+                                {a.url ? <a href={a.url} target="_blank" rel="noopener noreferrer">{a.name || 'Link'}</a> : a.name || '—'}
+                                {i < f.attachments.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </p>
+                        )}
+                        <button type="button" className="btn btn-outline" style={{ marginTop: 10, fontSize: 12 }} onClick={() => setInfoFeature(null)}>Fechar</button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
