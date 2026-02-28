@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
@@ -10,7 +10,7 @@ const LOG_SOURCE_LABELS = {
   status_report: 'Reunião de Status Report',
 };
 
-export default function StatusReportPage() {
+function StatusReportContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [projects, setProjects] = useState([]);
@@ -289,5 +289,13 @@ export default function StatusReportPage() {
         })
       }
     </div>
+  );
+}
+
+export default function StatusReportPage() {
+  return (
+    <Suspense fallback={<div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>}>
+      <StatusReportContent />
+    </Suspense>
   );
 }
