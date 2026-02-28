@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import FilterBox from '@/app/components/FilterBox';
 
 const COLUMNS = [
   { id: 'not_prioritized', title: 'Não priorizado', status: 'not_prioritized' },
@@ -122,7 +123,7 @@ export default function KanbanPage() {
             Tarefas em aberto por status. Arraste o card para outra coluna para atualizar.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <FilterBox>
           <select
             style={{ minWidth: 200 }}
             value={selectedProject}
@@ -135,14 +136,6 @@ export default function KanbanPage() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className={showNotPrioritized ? 'btn btn-primary' : 'btn btn-outline'}
-            onClick={() => setShowNotPrioritized(!showNotPrioritized)}
-            title="Mostrar/ocultar coluna Backlog não priorizado"
-          >
-            {showNotPrioritized ? 'Ocultar' : 'Mostrar'} não priorizado
-          </button>
           <button
             className="btn btn-outline"
             type="button"
@@ -158,7 +151,7 @@ export default function KanbanPage() {
           >
             ← Voltar
           </button>
-        </div>
+        </FilterBox>
       </div>
 
       <div className="card" style={{ marginBottom: 16, padding: 12, background: 'rgba(37, 99, 235, 0.06)', border: '1px solid var(--border)' }}>
@@ -172,16 +165,38 @@ export default function KanbanPage() {
           <LoadingSpinner message="Aguarde, carregando..." />
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: 16,
-            minHeight: 400,
-          }}
-          className="kanban-board"
-          style={{ gridTemplateColumns: showNotPrioritized ? 'repeat(auto-fill, minmax(180px, 1fr))' : 'repeat(auto-fill, minmax(180px, 1fr))' }}
-        >
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Backlog não priorizado:</span>
+            <button
+              type="button"
+              onClick={() => setShowNotPrioritized(!showNotPrioritized)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'var(--primary)',
+                textDecoration: 'underline',
+                fontWeight: 500,
+              }}
+              title={showNotPrioritized ? 'Ocultar coluna' : 'Mostrar coluna'}
+            >
+              {showNotPrioritized ? '− Ocultar' : '+ Mostrar'}
+            </button>
+          </div>
+          <div
+            className="kanban-board"
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: 16,
+              minHeight: 400,
+              overflowX: 'auto',
+              paddingBottom: 8,
+            }}
+          >
           {columnsToShow.map((col) => (
             <div
               key={col.id}
@@ -190,6 +205,9 @@ export default function KanbanPage() {
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.status)}
               style={{
+                flexShrink: 0,
+                width: 220,
+                minWidth: 220,
                 background: 'var(--bg)',
                 borderRadius: 'var(--radius)',
                 border: '2px dashed var(--border)',
@@ -303,7 +321,8 @@ export default function KanbanPage() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        </>
       )}
 
     </div>

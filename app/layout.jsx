@@ -1,5 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
+import BuildInfo from './components/BuildInfo';
 
 export const metadata = {
   title: 'ToolBOX OPS',
@@ -36,7 +37,10 @@ export default function RootLayout({ children }) {
             </nav>
           </aside>
           <main className="main-content">
-            {children}
+            <div style={{ position: 'relative', minHeight: '100%', paddingTop: 6, paddingRight: 150 }}>
+              <BuildInfo />
+              {children}
+            </div>
           </main>
         </div>
       </body>

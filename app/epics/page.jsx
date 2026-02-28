@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import FilterBox from '@/app/components/FilterBox';
 
 export default function EpicsPage() {
   const router = useRouter();
@@ -136,12 +137,14 @@ export default function EpicsPage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Lista de épicos</h3>
-          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{ minWidth: 220 }}>
-            <option value="">Selecione um projeto...</option>
-            {projects.map((p) => (
-              <option key={p._id} value={p._id}>{p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})</option>
-            ))}
-          </select>
+          <FilterBox>
+            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{ minWidth: 220 }}>
+              <option value="">Selecione um projeto...</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>{p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})</option>
+              ))}
+            </select>
+          </FilterBox>
         </div>
         {!selectedProject ? (
           <p style={{ color: 'var(--text-muted)' }}>Selecione um projeto acima para listar os épicos disponíveis.</p>

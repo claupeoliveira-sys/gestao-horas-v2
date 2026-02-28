@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import FilterBox from '@/app/components/FilterBox';
 
 const LOG_SOURCE_LABELS = {
   email: 'E-mail',
@@ -193,7 +194,7 @@ function StatusReportContent() {
           <h2 className="page-title">Status Report</h2>
           <p className="page-subtitle">Visão executiva dos projetos e features.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <FilterBox>
           <select style={{ minWidth: 220 }} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             <option value="">Todos os projetos</option>
             {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({clientName(p)})</option>)}
@@ -201,7 +202,7 @@ function StatusReportContent() {
           <button className="btn btn-ghost" type="button" onClick={() => router.back()}>
             ← Voltar
           </button>
-        </div>
+        </FilterBox>
       </div>
 
       {loading ? <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div> :

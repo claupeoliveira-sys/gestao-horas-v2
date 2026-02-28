@@ -353,6 +353,17 @@ tr:hover { background: var(--bg-subtle); }
 .dashboard-alerts li.alert-danger { border-left: 3px solid var(--danger); background: #fef2f2; }
 .dashboard-alerts li.alert-warning { border-left: 3px solid var(--warning); background: #fffbeb; }
 
+.kanban-board {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.kanban-board::-webkit-scrollbar { height: 8px; }
+.kanban-board::-webkit-scrollbar-track { background: var(--bg-subtle); border-radius: 4px; }
+.kanban-board::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.kanban-board::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+.build-info { user-select: none; }
+
 .kanban-column-drag-over {
   border-color: var(--primary) !important;
   background: rgba(37, 99, 235, 0.05) !important;

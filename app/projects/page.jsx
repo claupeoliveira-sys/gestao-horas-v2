@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import FilterBox from '@/app/components/FilterBox';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -166,17 +167,19 @@ export default function ProjectsPage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Lista de projetos</h3>
-          <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={{ minWidth: 180 }}>
-            <option value="">Todos os clientes</option>
-            {clients.map((c) => (
-              <option key={c._id} value={c._id}>{c.name}</option>
-            ))}
-          </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ minWidth: 140 }}>
-            <option value="active">Ativos</option>
-            <option value="inactive">Inativos</option>
-            <option value="all">Todos</option>
-          </select>
+          <FilterBox>
+            <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={{ minWidth: 180 }}>
+              <option value="">Todos os clientes</option>
+              {clients.map((c) => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ minWidth: 140 }}>
+              <option value="active">Ativos</option>
+              <option value="inactive">Inativos</option>
+              <option value="all">Todos</option>
+            </select>
+          </FilterBox>
         </div>
         {(loading || !dataLoaded) ? (
           <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
