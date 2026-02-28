@@ -114,13 +114,19 @@ export default function Home() {
                 <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Quadro de tarefas</p>
               </div>
             </Link>
-            <Link href="/status-report">
-              <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
-                <p style={{ fontWeight: 600 }}>Status Report</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Visão executiva</p>
-              </div>
-            </Link>
-            <Link href="/people">
+<Link href="/status-report">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Status Report</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Visão executiva</p>
+          </div>
+        </Link>
+        <Link href="/painel-analistas">
+          <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
+            <p style={{ fontWeight: 600 }}>Painel Analistas</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Projetos, tarefas e alocação</p>
+          </div>
+        </Link>
+        <Link href="/people">
               <div className="card" style={{ cursor: 'pointer', minWidth: 160 }}>
                 <p style={{ fontWeight: 600 }}>Pessoas</p>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cadastro de pessoas</p>

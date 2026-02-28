@@ -23,6 +23,7 @@ export default function RootLayout({ children }) {
               <Link href="/kanban" className="nav-link">Kanban</Link>
               <Link href="/status-report" className="nav-link">Status Report</Link>
               <div className="nav-group-label">Pessoas e Times</div>
+              <Link href="/painel-analistas" className="nav-link">Painel Analistas</Link>
               <Link href="/people" className="nav-link">Pessoas</Link>
               <Link href="/teams" className="nav-link">Times</Link>
               <Link href="/acompanhamento" className="nav-link">Acompanhamento</Link>

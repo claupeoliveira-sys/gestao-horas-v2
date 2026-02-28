@@ -17,6 +17,7 @@ function StatusReportContent() {
   const [epics, setEpics] = useState([]);
   const [features, setFeatures] = useState([]);
   const [projectLogs, setProjectLogs] = useState([]);
+  const [allocations, setAllocations] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [loading, setLoading] = useState(true);
   const [logForms, setLogForms] = useState({});
@@ -30,22 +31,25 @@ function StatusReportContent() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [pRes, eRes, fRes, logsRes] = await Promise.all([
+      const [pRes, eRes, fRes, logsRes, allocRes] = await Promise.all([
         fetch('/api/projects'),
         fetch('/api/epics'),
         fetch('/api/features'),
         fetch('/api/project-logs'),
+        fetch('/api/allocations'),
       ]);
-      const [p, e, f, logs] = await Promise.all([
+      const [p, e, f, logs, alloc] = await Promise.all([
         pRes.json(),
         eRes.json(),
         fRes.json(),
         logsRes.json(),
+        allocRes.json(),
       ]);
       setProjects(p);
       setEpics(e);
       setFeatures(f);
       setProjectLogs(logs);
+      setAllocations(alloc);
       setLoading(false);
     }
     load();
@@ -130,6 +134,26 @@ function StatusReportContent() {
     );
   }
 
+  function allocationsForProject(projectId) {
+    return allocations.filter((a) => (typeof a.projectId === 'object' ? a.projectId?._id : a.projectId) === projectId);
+  }
+
+  function projectAlerts(proj, m) {
+    const list = [];
+    const members = proj.memberIds || [];
+    if (members.length === 0) list.push({ type: 'warning', text: 'Projeto sem membros atribuídos' });
+    if (m.total > 0 && m.doneCount / m.total < 0.2 && m.total >= 3) list.push({ type: 'info', text: `${m.total - m.doneCount} tarefas ainda em aberto` });
+    if (m.total > 0 && m.totalLogged > m.totalEstimated) list.push({ type: 'danger', text: 'Horas lançadas acima do estimado' });
+    if (proj.endDate) {
+      const end = new Date(proj.endDate);
+      const today = new Date();
+      const days = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+      if (days >= 0 && days <= 14) list.push({ type: 'warning', text: `Prazo em ${days} dias` });
+      if (days < 0) list.push({ type: 'danger', text: 'Prazo vencido' });
+    }
+    return list;
+  }
+
   return (
     <div>
       <div className="page-header" style={{ marginBottom: 24 }}>
@@ -185,6 +209,43 @@ function StatusReportContent() {
                   <p style={{ fontSize: 14 }}>Concluídas: <strong>{m.doneCount}/{m.total}</strong></p>
                 </div>
               </div>
+
+              {projectAlerts(p, m).length > 0 && (
+                <div style={{ marginBottom: 16, padding: 12, background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>Alertas</p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {projectAlerts(p, m).map((a, i) => (
+                      <li key={i} style={{ fontSize: 13, marginBottom: 4, color: a.type === 'danger' ? 'var(--danger)' : a.type === 'warning' ? 'var(--warning)' : 'var(--text-muted)' }}>
+                        {a.type === 'danger' && '⚠ '}{a.type === 'warning' && '⚡ '}{a.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {allocationsForProject(p._id).length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>Alocações (vínculo com projeto)</p>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Pessoa</th>
+                        <th>%</th>
+                        <th>Horas prev.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allocationsForProject(p._id).map((a) => (
+                        <tr key={a._id}>
+                          <td>{(typeof a.personId === 'object' && a.personId?.name) || '—'}</td>
+                          <td>{a.percentual}%</td>
+                          <td>{a.horasPrevistas}h</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>Épicos</p>
               <table>

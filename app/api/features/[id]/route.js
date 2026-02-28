@@ -1,11 +1,35 @@
 import connectDB from '@/lib/mongodb';
 import Feature from '@/lib/models/Feature';
+import FeatureHistory from '@/lib/models/FeatureHistory';
 import { NextResponse } from 'next/server';
 
 export async function PUT(req, { params }) {
   await connectDB();
   const body = await req.json();
+  const previous = await Feature.findById(params.id).lean();
+  if (!previous) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+
   const feature = await Feature.findByIdAndUpdate(params.id, body, { new: true })
     .populate('analystIds', 'name email');
+
+  const historyEntries = [];
+  if (body.status !== undefined && String(previous.status) !== String(body.status)) {
+    historyEntries.push({ featureId: params.id, action: 'status_change', details: `Status: ${previous.status} → ${body.status}`, oldValue: previous.status, newValue: body.status });
+  }
+  if (body.percentComplete !== undefined && Number(previous.percentComplete) !== Number(body.percentComplete)) {
+    historyEntries.push({ featureId: params.id, action: 'progress_change', details: `Conclusão: ${previous.percentComplete}% → ${body.percentComplete}%`, oldValue: previous.percentComplete, newValue: body.percentComplete });
+  }
+  if (body.loggedHours !== undefined && Number(previous.loggedHours) !== Number(body.loggedHours)) {
+    historyEntries.push({ featureId: params.id, action: 'hours_change', details: `Horas lançadas: ${previous.loggedHours} → ${body.loggedHours}`, oldValue: previous.loggedHours, newValue: body.loggedHours });
+  }
+  if (body.analystIds !== undefined) {
+    const oldIds = (previous.analystIds || []).map((a) => String(a)).sort().join(',');
+    const newIds = (body.analystIds || []).map((a) => String(a)).sort().join(',');
+    if (oldIds !== newIds) {
+      historyEntries.push({ featureId: params.id, action: 'analysts_change', details: 'Alteração de analistas', oldValue: previous.analystIds, newValue: body.analystIds });
+    }
+  }
+  if (historyEntries.length) await FeatureHistory.insertMany(historyEntries);
+
   return NextResponse.json(feature);
 }

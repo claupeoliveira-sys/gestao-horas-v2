@@ -18,6 +18,7 @@ export default function FeaturesPage() {
   const [editingFeature, setEditingFeature] = useState(null);
   const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', userStory: '', analystIds: [] });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [featureHistory, setFeatureHistory] = useState([]);
 
   async function loadBase() {
     const [pRes, eRes, peopleRes] = await Promise.all([fetch('/api/projects'), fetch('/api/epics'), fetch('/api/people')]);
@@ -39,6 +40,13 @@ export default function FeaturesPage() {
 
   useEffect(() => { loadBase().then(() => loadFeatures()); }, []);
   useEffect(() => { loadFeatures({ projectId: selectedProject, epicId: selectedEpic }); }, [selectedProject, selectedEpic]);
+
+  useEffect(() => {
+    if (!editingFeature?._id) { setFeatureHistory([]); return; }
+    fetch('/api/feature-history?featureId=' + editingFeature._id)
+      .then((r) => r.json())
+      .then(setFeatureHistory);
+  }, [editingFeature?._id]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -69,6 +77,7 @@ export default function FeaturesPage() {
     });
     setSavingEdit(false);
     setEditingFeature(null);
+    setFeatureHistory([]);
     loadFeatures({ projectId: selectedProject, epicId: selectedEpic });
   }
 
@@ -243,6 +252,18 @@ export default function FeaturesPage() {
         {editingFeature && (
           <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
             <h4 style={{ marginBottom: 12 }}>Editando: {editingFeature.name}</h4>
+            {featureHistory.length > 0 && (
+              <div style={{ marginBottom: 16, padding: 12, background: 'var(--bg)', borderRadius: 'var(--radius)' }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>Histórico de alterações</p>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 13 }}>
+                  {featureHistory.slice(0, 10).map((h) => (
+                    <li key={h._id} style={{ marginBottom: 4 }}>
+                      {h.details} — {h.createdAt ? new Date(h.createdAt).toLocaleString('pt-BR') : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 16 }}>
               <div className="form-group" style={{ flex: 1 }}>
                 <label>Horas lançadas</label>
