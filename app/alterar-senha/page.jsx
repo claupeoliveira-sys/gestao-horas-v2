@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function AlterarSenhaPage() {
+function AlterarSenhaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isFirst = searchParams.get('first') === '1';
@@ -104,5 +104,17 @@ export default function AlterarSenhaPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function AlterarSenhaPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--text-muted)' }}>Carregando...</p>
+      </div>
+    }>
+      <AlterarSenhaContent />
+    </Suspense>
   );
 }
