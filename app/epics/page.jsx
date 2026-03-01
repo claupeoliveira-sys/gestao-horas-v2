@@ -6,6 +6,7 @@ import LoadingOverlay from '@/app/components/LoadingOverlay';
 import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
 import ConfirmModal from '@/app/components/ConfirmModal';
+import { safeJson } from '@/lib/safeJson';
 
 export default function EpicsPage() {
   const router = useRouter();
@@ -30,8 +31,8 @@ export default function EpicsPage() {
   async function loadProjects() {
     try {
       const res = await fetch('/api/projects');
-      const p = await res.json();
-      setProjects(p);
+      const p = await safeJson(res, []);
+      setProjects(Array.isArray(p) ? p : []);
     } catch (_) {
       setProjects([]);
     }
@@ -44,9 +45,9 @@ export default function EpicsPage() {
         fetch('/api/epics?projectId=' + (projectId || '')),
         fetch('/api/features?projectId=' + (projectId || '')),
       ]);
-      const [e, f] = await Promise.all([eRes.json(), fRes.json()]);
-      setEpics(projectId ? e : []);
-      setFeatures(projectId ? f : []);
+      const [e, f] = await Promise.all([safeJson(eRes, []), safeJson(fRes, [])]);
+      setEpics(projectId && Array.isArray(e) ? e : []);
+      setFeatures(projectId && Array.isArray(f) ? f : []);
     } finally {
       setLoading(false);
     }
@@ -65,8 +66,8 @@ export default function EpicsPage() {
     (async () => {
       try {
         const res = await fetch('/api/projects');
-        const data = await res.json();
-        if (!cancelled) setProjects(data);
+        const data = await safeJson(res, []);
+        if (!cancelled) setProjects(Array.isArray(data) ? data : []);
       } catch (err) {
         if (!cancelled) setProjects([]), setError(err?.message || 'Erro ao carregar.');
       }
@@ -84,10 +85,10 @@ export default function EpicsPage() {
           fetch('/api/epics?projectId=' + (selectedProject || '')),
           fetch('/api/features?projectId=' + (selectedProject || '')),
         ]);
-        const [e, f] = await Promise.all([eRes.json(), fRes.json()]);
+        const [e, f] = await Promise.all([safeJson(eRes, []), safeJson(fRes, [])]);
         if (!cancelled) {
-          setEpics(selectedProject ? e : []);
-          setFeatures(selectedProject ? f : []);
+          setEpics(selectedProject && Array.isArray(e) ? e : []);
+          setFeatures(selectedProject && Array.isArray(f) ? f : []);
         }
       } catch (err) {
         if (!cancelled) setEpics([]), setFeatures([]), setError(err?.message || 'Erro ao carregar.');

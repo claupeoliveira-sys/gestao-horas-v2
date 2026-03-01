@@ -4,17 +4,22 @@ import Feature from '@/lib/models/Feature';
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
-  await connectDB();
-  const { searchParams } = new URL(req.url);
-  const featureId = searchParams.get('featureId');
-  const projectId = searchParams.get('projectId');
-  let filter = {};
-  if (featureId) {
-    filter.featureId = featureId;
-  } else if (projectId) {
-    const featureIds = await Feature.find({ projectId }).distinct('_id');
-    filter.featureId = { $in: featureIds };
+  try {
+    await connectDB();
+    const { searchParams } = new URL(req.url);
+    const featureId = searchParams.get('featureId');
+    const projectId = searchParams.get('projectId');
+    let filter = {};
+    if (featureId) {
+      filter.featureId = featureId;
+    } else if (projectId) {
+      const featureIds = await Feature.find({ projectId }).distinct('_id');
+      filter.featureId = { $in: featureIds };
+    }
+    const history = await FeatureHistory.find(filter).sort({ createdAt: -1 }).limit(200);
+    return NextResponse.json(history);
+  } catch (err) {
+    console.error('GET /api/feature-history', err);
+    return NextResponse.json([], { status: 200 });
   }
-  const history = await FeatureHistory.find(filter).sort({ createdAt: -1 }).limit(200);
-  return NextResponse.json(history);
 }

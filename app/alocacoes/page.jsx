@@ -6,6 +6,7 @@ import FilterBox from '@/app/components/FilterBox';
 import LoadingOverlay from '@/app/components/LoadingOverlay';
 import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import ConfirmModal from '@/app/components/ConfirmModal';
+import { safeJson } from '@/lib/safeJson';
 
 export default function AlocacoesPage() {
   const router = useRouter();
@@ -28,6 +29,11 @@ export default function AlocacoesPage() {
     endDate: '',
   });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+  const [filterScope, setFilterScope] = useState('active');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmId, setConfirmId] = useState(null);
+  const [page, setPage] = useState(1);
 
   useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/alocacoes');
 
@@ -50,8 +56,8 @@ export default function AlocacoesPage() {
       if (filterPerson) params.append('personId', filterPerson);
       if (filterProject) params.append('projectId', filterProject);
       const res = await fetch('/api/allocations?' + params.toString());
-      const data = await res.json();
-      setAllocations(data);
+      const data = await safeJson(res, []);
+      setAllocations(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
     }
@@ -63,8 +69,11 @@ export default function AlocacoesPage() {
     (async () => {
       try {
         const [peopleRes, projectsRes] = await Promise.all([fetch('/api/people'), fetch('/api/projects')]);
-        const [peopleData, projectsData] = await Promise.all([peopleRes.json(), projectsRes.json()]);
-        if (!cancelled) setPeople(peopleData), setProjects(projectsData);
+        const [peopleData, projectsData] = await Promise.all([safeJson(peopleRes, []), safeJson(projectsRes, [])]);
+        if (!cancelled) {
+          setPeople(Array.isArray(peopleData) ? peopleData : []);
+          setProjects(Array.isArray(projectsData) ? projectsData : []);
+        }
       } catch (err) {
         if (!cancelled) setPeople([]), setProjects([]), setError(err?.message || 'Erro ao carregar.');
       }
@@ -82,10 +91,10 @@ export default function AlocacoesPage() {
         if (filterPerson) params.append('personId', filterPerson);
         if (filterProject) params.append('projectId', filterProject);
         const res = await fetch('/api/allocations?' + params.toString());
-        const data = await res.json();
-        if (!cancelled) setAllocations(data);
-      } catch (_) {
-        if (!cancelled) setAllocations([]);
+        const data = await safeJson(res, []);
+        if (!cancelled) setAllocations(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (!cancelled) setAllocations([]), setError(err?.message || 'Erro ao carregar alocações.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -159,6 +168,30 @@ export default function AlocacoesPage() {
       endDate: '',
     });
   }
+
+  function handleConfirmDelete() {
+    if (!confirmId) return;
+    setSaving(true);
+    fetch(`/api/allocations/${confirmId}`, { method: 'DELETE' })
+      .then(() => {
+        setConfirmOpen(false);
+        setConfirmId(null);
+        loadAllocations();
+        if (editingId === confirmId) cancelEdit();
+      })
+      .finally(() => setSaving(false));
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const scopeFiltered = filterScope === 'historical'
+    ? allocations.filter((a) => a.endDate && new Date(a.endDate) < today)
+    : allocations.filter((a) => !a.endDate || new Date(a.endDate) >= today);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(scopeFiltered.length / PAGE_SIZE));
+  const paginatedAllocations = scopeFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [filterPerson, filterProject, filterScope]);
 
   function personName(a) {
     const p = a.personId;

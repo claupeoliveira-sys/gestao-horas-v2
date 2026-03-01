@@ -7,6 +7,7 @@ import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
 import ConfirmModal from '@/app/components/ConfirmModal';
 import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
+import { safeJson } from '@/lib/safeJson';
 
 export default function FeaturesPage() {
   const router = useRouter();
@@ -45,10 +46,10 @@ export default function FeaturesPage() {
       fetch('/api/epics'),
       fetch('/api/people'),
     ]);
-    const [p, e, peopleList] = await Promise.all([pRes.json(), eRes.json(), peopleRes.json()]);
-    setProjects(p);
-    setEpics(e);
-    setPeople(peopleList);
+    const [p, e, peopleList] = await Promise.all([safeJson(pRes, []), safeJson(eRes, []), safeJson(peopleRes, [])]);
+    setProjects(Array.isArray(p) ? p : []);
+    setEpics(Array.isArray(e) ? e : []);
+    setPeople(Array.isArray(peopleList) ? peopleList : []);
   }
 
   async function loadFeatures() {
@@ -56,7 +57,8 @@ export default function FeaturesPage() {
     try {
       const params = selectedProject ? '?projectId=' + selectedProject : '';
       const res = await fetch('/api/features' + params);
-      setFeatures(await res.json());
+      const data = await safeJson(res, []);
+      setFeatures(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
     }
@@ -72,8 +74,12 @@ export default function FeaturesPage() {
           fetch('/api/epics'),
           fetch('/api/people'),
         ]);
-        const [p, e, peopleList] = await Promise.all([pRes.json(), eRes.json(), peopleRes.json()]);
-        if (!cancelled) setProjects(p), setEpics(e), setPeople(peopleList);
+        const [p, e, peopleList] = await Promise.all([safeJson(pRes, []), safeJson(eRes, []), safeJson(peopleRes, [])]);
+        if (!cancelled) {
+          setProjects(Array.isArray(p) ? p : []);
+          setEpics(Array.isArray(e) ? e : []);
+          setPeople(Array.isArray(peopleList) ? peopleList : []);
+        }
       } catch (err) {
         if (!cancelled) setProjects([]), setEpics([]), setPeople([]), setError(err?.message || 'Erro ao carregar.');
       }
@@ -94,8 +100,8 @@ export default function FeaturesPage() {
       try {
         const params = selectedProject ? '?projectId=' + selectedProject : '';
         const res = await fetch('/api/features' + params);
-        const data = await res.json();
-        if (!cancelled) setFeatures(data);
+        const data = await safeJson(res, []);
+        if (!cancelled) setFeatures(Array.isArray(data) ? data : []);
       } catch (err) {
         if (!cancelled) setFeatures([]), setError(err?.message || 'Erro ao carregar features.');
       } finally {
@@ -108,8 +114,8 @@ export default function FeaturesPage() {
   useEffect(() => {
     if (!editingFeature?._id) { setFeatureHistory([]); return; }
     fetch('/api/feature-history?featureId=' + editingFeature._id)
-      .then((r) => r.json())
-      .then(setFeatureHistory);
+      .then((r) => safeJson(r, []))
+      .then((hist) => setFeatureHistory(Array.isArray(hist) ? hist : []));
   }, [editingFeature?._id]);
 
   async function handleSubmit(e) {

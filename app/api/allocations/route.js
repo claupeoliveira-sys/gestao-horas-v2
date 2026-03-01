@@ -3,18 +3,23 @@ import Allocation from '@/lib/models/Allocation';
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
-  await connectDB();
-  const { searchParams } = new URL(req.url);
-  const personId = searchParams.get('personId');
-  const projectId = searchParams.get('projectId');
-  const filter = {};
-  if (personId) filter.personId = personId;
-  if (projectId) filter.projectId = projectId;
-  const allocations = await Allocation.find(filter)
-    .populate('personId', 'name email role')
-    .populate('projectId', 'name client')
-    .sort({ createdAt: -1 });
-  return NextResponse.json(allocations);
+  try {
+    await connectDB();
+    const { searchParams } = new URL(req.url);
+    const personId = searchParams.get('personId');
+    const projectId = searchParams.get('projectId');
+    const filter = {};
+    if (personId) filter.personId = personId;
+    if (projectId) filter.projectId = projectId;
+    const allocations = await Allocation.find(filter)
+      .populate('personId', 'name email role')
+      .populate('projectId', 'name client')
+      .sort({ createdAt: -1 });
+    return NextResponse.json(allocations);
+  } catch (err) {
+    console.error('GET /api/allocations', err);
+    return NextResponse.json([], { status: 200 });
+  }
 }
 
 export async function POST(req) {
