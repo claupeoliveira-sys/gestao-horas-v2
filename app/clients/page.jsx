@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import LoadingOverlay from '@/app/components/LoadingOverlay';
 import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import ConfirmModal from '@/app/components/ConfirmModal';
+import { safeJson } from '@/lib/safeJson';
 
 export default function ClientsPage() {
   const router = useRouter();
@@ -32,8 +33,8 @@ export default function ClientsPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/clients');
-      const data = await res.json();
-      setClients(data);
+      const data = await safeJson(res, []);
+      setClients(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
     }
@@ -46,8 +47,8 @@ export default function ClientsPage() {
     (async () => {
       try {
         const res = await fetch('/api/clients');
-        const data = await res.json();
-        if (!cancelled) setClients(data);
+        const data = await safeJson(res, []);
+        if (!cancelled) setClients(Array.isArray(data) ? data : []);
       } catch (err) {
         if (!cancelled) setClients([]), setError(err?.message || 'Erro ao carregar.');
       } finally {

@@ -6,6 +6,7 @@ import { useVisibilityRefresh } from './hooks/useVisibilityRefresh';
 import Link from 'next/link';
 import LoadingOverlay from './components/LoadingOverlay';
 import { getProjectHealth } from '@/lib/projectHealth';
+import { safeJson } from '@/lib/safeJson';
 import {
   BarChart,
   Bar,
@@ -52,12 +53,13 @@ export default function Home() {
     (async () => {
       try {
         const res = await fetch('/api/dashboard');
-        const data = await res.json();
+        const data = await safeJson(res, {});
         if (!cancelled) {
-          setProjects(data.projects || []);
-          setFeatures(data.features || []);
-          setConstatacoes(data.constatacoes || []);
-          setProjectLogs(data.projectLogs || []);
+          const obj = data && typeof data === 'object' ? data : {};
+          setProjects(Array.isArray(obj.projects) ? obj.projects : []);
+          setFeatures(Array.isArray(obj.features) ? obj.features : []);
+          setConstatacoes(Array.isArray(obj.constatacoes) ? obj.constatacoes : []);
+          setProjectLogs(Array.isArray(obj.projectLogs) ? obj.projectLogs : []);
         }
       } catch (err) {
         if (!cancelled) {

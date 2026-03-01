@@ -6,6 +6,7 @@ import LoadingOverlay from '@/app/components/LoadingOverlay';
 import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
 import ConfirmModal from '@/app/components/ConfirmModal';
+import { safeJson } from '@/lib/safeJson';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -47,15 +48,15 @@ export default function ProjectsPage() {
         fetch('/api/teams'),
       ]);
       const [data, peopleData, clientsData, teamsData] = await Promise.all([
-        pRes.json(),
-        peopleRes.json(),
-        clientsRes.json(),
-        teamsRes.json(),
+        safeJson(pRes, []),
+        safeJson(peopleRes, []),
+        safeJson(clientsRes, []),
+        safeJson(teamsRes, []),
       ]);
-      setProjects(data);
-      setPeople(peopleData);
-      setClients(clientsData);
-      setTeams(teamsData || []);
+      setProjects(Array.isArray(data) ? data : []);
+      setPeople(Array.isArray(peopleData) ? peopleData : []);
+      setClients(Array.isArray(clientsData) ? clientsData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
     } catch (_) {
       setProjects([]);
       setPeople([]);
@@ -104,16 +105,16 @@ export default function ProjectsPage() {
           fetch('/api/teams'),
         ]);
         const [data, peopleData, clientsData, teamsData] = await Promise.all([
-          pRes.json(),
-          peopleRes.json(),
-          clientsRes.json(),
-          teamsRes.json(),
+          safeJson(pRes, []),
+          safeJson(peopleRes, []),
+          safeJson(clientsRes, []),
+          safeJson(teamsRes, []),
         ]);
         if (!cancelled) {
-          setProjects(data);
-          setPeople(peopleData);
-          setClients(clientsData);
-          setTeams(teamsData || []);
+          setProjects(Array.isArray(data) ? data : []);
+          setPeople(Array.isArray(peopleData) ? peopleData : []);
+          setClients(Array.isArray(clientsData) ? clientsData : []);
+          setTeams(Array.isArray(teamsData) ? teamsData : []);
         }
       } catch (err) {
         if (!cancelled) setProjects([]), setPeople([]), setClients([]), setTeams([]), setError(err?.message || 'Erro ao carregar.');

@@ -3,9 +3,14 @@ import Team from '@/lib/models/Team';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  await connectDB();
-  const teams = await Team.find().sort({ createdAt: -1 });
-  return NextResponse.json(teams);
+  try {
+    await connectDB();
+    const teams = await Team.find().sort({ createdAt: -1 });
+    return NextResponse.json(teams);
+  } catch (err) {
+    console.error('GET /api/teams', err);
+    return NextResponse.json([], { status: 200 });
+  }
 }
 
 export async function POST(req) {

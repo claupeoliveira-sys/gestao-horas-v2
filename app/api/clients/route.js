@@ -3,9 +3,14 @@ import Client from '@/lib/models/Client';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  await connectDB();
-  const clients = await Client.find().sort({ name: 1 });
-  return NextResponse.json(clients);
+  try {
+    await connectDB();
+    const clients = await Client.find().sort({ name: 1 });
+    return NextResponse.json(clients);
+  } catch (err) {
+    console.error('GET /api/clients', err);
+    return NextResponse.json([], { status: 200 });
+  }
 }
 
 export async function POST(req) {

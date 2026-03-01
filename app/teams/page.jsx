@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import LoadingOverlay from '@/app/components/LoadingOverlay';
 import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import ConfirmModal from '@/app/components/ConfirmModal';
+import { safeJson } from '@/lib/safeJson';
 
 export default function TeamsPage() {
   const router = useRouter();
@@ -30,8 +31,8 @@ export default function TeamsPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/teams');
-      const data = await res.json();
-      setTeams(data);
+      const data = await safeJson(res, []);
+      setTeams(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
     }
@@ -44,8 +45,8 @@ export default function TeamsPage() {
     (async () => {
       try {
         const res = await fetch('/api/teams');
-        const data = await res.json();
-        if (!cancelled) setTeams(data);
+        const data = await safeJson(res, []);
+        if (!cancelled) setTeams(Array.isArray(data) ? data : []);
       } catch (_) {
         if (!cancelled) setTeams([]);
       } finally {

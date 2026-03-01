@@ -6,12 +6,17 @@ import { hash } from 'bcryptjs';
 const excludePassword = '-passwordHash';
 
 export async function GET() {
-  await connectDB();
-  const people = await Person.find()
-    .select(excludePassword)
-    .populate('teamId', 'name')
-    .sort({ createdAt: -1 });
-  return NextResponse.json(people);
+  try {
+    await connectDB();
+    const people = await Person.find()
+      .select(excludePassword)
+      .populate('teamId', 'name')
+      .sort({ createdAt: -1 });
+    return NextResponse.json(people);
+  } catch (err) {
+    console.error('GET /api/people', err);
+    return NextResponse.json([], { status: 200 });
+  }
 }
 
 export async function POST(req) {

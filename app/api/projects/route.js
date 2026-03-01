@@ -4,17 +4,22 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 
 export async function GET() {
-  await connectDB();
-  const session = await getSession();
-  const filter = {};
-  if (session?.profileRole === 'user' && session?.personId) {
-    filter.memberIds = session.personId;
+  try {
+    await connectDB();
+    const session = await getSession();
+    const filter = {};
+    if (session?.profileRole === 'user' && session?.personId) {
+      filter.memberIds = session.personId;
+    }
+    const projects = await Project.find(filter)
+      .populate('memberIds', 'name email role')
+      .populate('clientId', 'name')
+      .sort({ createdAt: -1 });
+    return NextResponse.json(projects);
+  } catch (err) {
+    console.error('GET /api/projects', err);
+    return NextResponse.json([], { status: 200 });
   }
-  const projects = await Project.find(filter)
-    .populate('memberIds', 'name email role')
-    .populate('clientId', 'name')
-    .sort({ createdAt: -1 });
-  return NextResponse.json(projects);
 }
 
 export async function POST(req) {

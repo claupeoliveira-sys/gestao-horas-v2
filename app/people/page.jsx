@@ -7,6 +7,7 @@ import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
 import ConfirmModal from '@/app/components/ConfirmModal';
 import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
+import { safeJson } from '@/lib/safeJson';
 
 function generatePassword(length = 12) {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -59,9 +60,9 @@ export default function PeoplePage() {
     setLoading(true);
     try {
       const [res, tRes] = await Promise.all([fetch('/api/people'), fetch('/api/teams')]);
-      const [data, teamsData] = await Promise.all([res.json(), tRes.json()]);
-      setPeople(data);
-      setTeams(teamsData);
+      const [data, teamsData] = await Promise.all([safeJson(res, []), safeJson(tRes, [])]);
+      setPeople(Array.isArray(data) ? data : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
     } finally {
       setLoading(false);
     }
@@ -76,10 +77,10 @@ export default function PeoplePage() {
     (async () => {
       try {
         const [res, tRes] = await Promise.all([fetch('/api/people'), fetch('/api/teams')]);
-        const [data, teamsData] = await Promise.all([res.json(), tRes.json()]);
+        const [data, teamsData] = await Promise.all([safeJson(res, []), safeJson(tRes, [])]);
         if (!cancelled) {
-          setPeople(data);
-          setTeams(teamsData);
+          setPeople(Array.isArray(data) ? data : []);
+          setTeams(Array.isArray(teamsData) ? teamsData : []);
         }
       } catch (err) {
         if (!cancelled) setPeople([]), setTeams([]), setError(err?.message || 'Erro ao carregar.');
