@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import BuildInfo from './BuildInfo';
 import ThemeToggle from './ThemeToggle';
 import NotificationBell from './NotificationBell';
-import Link from 'next/link';
 
 const NAV_ICONS = {
   home: '🏠',
