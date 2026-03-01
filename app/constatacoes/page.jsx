@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import FilterBox from '@/app/components/FilterBox';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
+import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
 
 const TIPOS = {
   observation: 'Observação',
@@ -19,8 +22,12 @@ export default function ConstatacoesPage() {
   const [features, setFeatures] = useState([]);
   const [constatacoes, setConstatacoes] = useState([]);
   const [filterProject, setFilterProject] = useState('');
+  const [filterTitle, setFilterTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const debouncedFilterTitle = useDebouncedValue(filterTitle, 400);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -30,6 +37,9 @@ export default function ConstatacoesPage() {
     type: 'observation',
     date: new Date().toISOString().slice(0, 10),
   });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/constatacoes');
 
   async function loadProjects() {
     const res = await fetch('/api/projects');
@@ -63,22 +73,65 @@ export default function ConstatacoesPage() {
   }
 
   useEffect(() => {
-    loadProjects();
-    loadEpics();
-    loadFeatures();
+    let cancelled = false;
+    (async () => {
+      try {
+        const [pRes, eRes, fRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/epics'),
+          fetch('/api/features'),
+        ]);
+        const [p, e, f] = await Promise.all([pRes.json(), eRes.json(), fRes.json()]);
+        if (!cancelled) setProjects(p), setEpics(e), setFeatures(f);
+      } catch (err) {
+        if (!cancelled) setProjects([]), setEpics([]), setFeatures([]), setError(err?.message || 'Erro ao carregar.');
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (pathname !== '/constatacoes') return;
-    loadProjects();
-    loadEpics();
-    loadFeatures();
-    loadConstatacoes();
-  }, [pathname]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const [pRes, eRes, fRes, cRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/epics'),
+          fetch('/api/features'),
+          fetch('/api/constatacoes' + (filterProject ? '?projectId=' + filterProject : '')),
+        ]);
+        const [p, e, f, c] = await Promise.all([pRes.json(), eRes.json(), fRes.json(), cRes.json()]);
+        if (!cancelled) setProjects(p), setEpics(e), setFeatures(f), setConstatacoes(c || []);
+      } catch (err) {
+        if (!cancelled) setProjects([]), setEpics([]), setFeatures([]), setConstatacoes([]), setError(err?.message || 'Erro ao carregar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
-    loadConstatacoes();
-  }, [filterProject]);
+    if (pathname !== '/constatacoes') return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (filterProject) params.append('projectId', filterProject);
+        const res = await fetch('/api/constatacoes?' + params.toString());
+        const data = await res.json();
+        if (!cancelled) setConstatacoes(data);
+      } catch (err) {
+        if (!cancelled) setConstatacoes([]), setError(err?.message || 'Erro ao carregar constatações.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, filterProject, refreshKey]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -121,6 +174,16 @@ export default function ConstatacoesPage() {
     return features.find((f) => f._id === id)?.name || '—';
   }
 
+  const searchFiltered = debouncedFilterTitle.trim()
+    ? constatacoes.filter((c) => (c.title || '').toLowerCase().includes(debouncedFilterTitle.toLowerCase().trim()))
+    : constatacoes;
+  useEffect(() => { setPage(1); }, [filterProject, debouncedFilterTitle]);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(searchFiltered.length / PAGE_SIZE));
+  const paginatedConstatacoes = searchFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header">
@@ -138,6 +201,13 @@ export default function ConstatacoesPage() {
           ← Voltar
         </button>
       </div>
+
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div
         className="card"
@@ -269,12 +339,12 @@ export default function ConstatacoesPage() {
         >
           <h3 style={{ fontSize: 18, margin: 0 }}>Lista de constatações</h3>
           <FilterBox
-            hasActiveFilters={filterProject !== ''}
-            onClear={() => setFilterProject('')}
+            hasActiveFilters={filterProject !== '' || (filterTitle || '').trim() !== ''}
+            onClear={() => { setFilterProject(''); setFilterTitle(''); setPage(1); }}
           >
             <select
               value={filterProject}
-              onChange={(e) => setFilterProject(e.target.value)}
+              onChange={(e) => { setFilterProject(e.target.value); setPage(1); }}
               className="filter-select"
             >
               <option value="">Todos os projetos</option>
@@ -284,13 +354,20 @@ export default function ConstatacoesPage() {
                 </option>
               ))}
             </select>
+            <input
+              type="text"
+              className="filter-select"
+              placeholder="Buscar por título"
+              value={filterTitle}
+              onChange={(e) => setFilterTitle(e.target.value)}
+              style={{ minWidth: 180 }}
+            />
           </FilterBox>
         </div>
-        {loading ? (
-          <p>Carregando...</p>
-        ) : constatacoes.length === 0 ? (
-          <p>Nenhuma constatação registrada.</p>
+        {searchFiltered.length === 0 ? (
+          <p>Nenhuma constatação registrada ou encontrada com os filtros.</p>
         ) : (
+          <>
           <table>
             <thead>
               <tr>
@@ -304,7 +381,7 @@ export default function ConstatacoesPage() {
               </tr>
             </thead>
             <tbody>
-              {constatacoes.map((c) => (
+              {paginatedConstatacoes.map((c) => (
                 <tr key={c._id}>
                   <td>
                     {c.date
@@ -321,6 +398,14 @@ export default function ConstatacoesPage() {
               ))}
             </tbody>
           </table>
+          {searchFiltered.length > PAGE_SIZE && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Anterior</button>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Página {page} de {totalPages}</span>
+              <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Próxima</button>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

@@ -42,6 +42,7 @@
   --btn-ghost-hover-bg: rgba(248, 250, 252, 0.8);
   --scrollbar-thumb-hover: #cbd5e1;
   --card-hover-border: #e2e8f0;
+  --loading-overlay-bg: rgba(241, 245, 249, 0.9);
 }
 
 html.dark {
@@ -67,6 +68,7 @@ html.dark {
   --btn-ghost-hover-bg: rgba(51, 65, 85, 0.5);
   --scrollbar-thumb-hover: #64748b;
   --card-hover-border: #475569;
+  --loading-overlay-bg: rgba(15, 23, 42, 0.9);
 }
 
 body {
@@ -190,7 +192,55 @@ body {
 }
 .btn-outline:hover {
   background: var(--bg-subtle);
-  border-color: #cbd5e1;
+  border-color: var(--border);
+}
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border: 1px solid var(--danger);
+}
+.btn-danger:hover {
+  filter: brightness(1.1);
+}
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--loading-overlay-bg);
+  padding: 20px;
+}
+.confirm-modal-box {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  padding: 24px 28px;
+  max-width: 420px;
+  width: 100%;
+}
+.confirm-modal-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+  margin: 0 0 12px;
+}
+.confirm-modal-message {
+  font-size: var(--font-size-base);
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.confirm-modal-item {
+  font-size: var(--font-size-base);
+  color: var(--text);
+  margin: 0 0 20px;
+}
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 .btn-ghost {
   background: transparent;
@@ -514,6 +564,35 @@ tr:hover { background: var(--bg-subtle); }
   padding: 48px 32px;
   color: var(--text-muted);
   font-size: 14px;
+}
+
+.loading-overlay-full {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--loading-overlay-bg);
+  pointer-events: all;
+}
+.loading-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px 40px;
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-muted);
+  font-size: var(--font-size-base);
+}
+.loading-overlay-message {
+  margin: 0;
+  color: var(--text);
+  font-weight: var(--font-weight-medium);
 }
 .loading-spinner {
   width: 44px;

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 
 const STATUS_LABEL = {
   backlog: 'Backlog',
@@ -20,6 +21,10 @@ export default function PainelAnalistasPage() {
   const [features, setFeatures] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/painel-analistas');
 
   useEffect(() => {
     if (pathname !== '/painel-analistas') return;
@@ -40,13 +45,15 @@ export default function PainelAnalistasPage() {
           setFeatures(f);
           setAllocations(a);
         }
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'Erro ao carregar.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
-  }, [pathname]);
+  }, [pathname, refreshKey]);
 
   function projectName(id) {
     const proj = projects.find((x) => x._id === id);
@@ -78,6 +85,8 @@ export default function PainelAnalistasPage() {
     );
   }
 
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header">
@@ -91,12 +100,13 @@ export default function PainelAnalistasPage() {
           ← Voltar
         </button>
       </div>
-
-      {loading ? (
-        <div className="card">
-          <LoadingSpinner message="Aguarde, carregando..." />
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
         </div>
-      ) : people.length === 0 ? (
+      )}
+      {people.length === 0 ? (
         <div className="card">
           <p>Cadastre pessoas em Pessoas para ver o painel.</p>
         </div>

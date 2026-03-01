@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
+import ConfirmModal from '@/app/components/ConfirmModal';
 
 export default function ClientsPage() {
   const router = useRouter();
@@ -18,6 +20,13 @@ export default function ClientsPage() {
     email: '',
     notes: '',
   });
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmItemId, setConfirmItemId] = useState(null);
+  const [confirmItemName, setConfirmItemName] = useState('');
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/clients');
 
   async function loadClients() {
     setLoading(true);
@@ -32,8 +41,21 @@ export default function ClientsPage() {
 
   useEffect(() => {
     if (pathname !== '/clients') return;
-    loadClients();
-  }, [pathname]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/clients');
+        const data = await res.json();
+        if (!cancelled) setClients(data);
+      } catch (err) {
+        if (!cancelled) setClients([]), setError(err?.message || 'Erro ao carregar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   function openNew() {
     setEditingId(null);
@@ -78,18 +100,23 @@ export default function ClientsPage() {
     }
   }
 
-  async function handleRemove(id, name) {
-    if (!confirm(`Remover o cliente "${name}"? Esta ação não pode ser desfeita.`)) return;
+  async function handleConfirmRemove() {
+    if (!confirmItemId) return;
     setSaving(true);
     try {
-      await fetch(`/api/clients/${id}`, { method: 'DELETE' });
-      if (editingId === id) setEditingId(null);
+      await fetch(`/api/clients/${confirmItemId}`, { method: 'DELETE' });
+      setConfirmOpen(false);
+      setConfirmItemId(null);
+      setConfirmItemName('');
+      if (editingId === confirmItemId) setEditingId(null);
       setFormOpen(false);
       loadClients();
     } finally {
       setSaving(false);
     }
   }
+
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
 
   return (
     <div>
@@ -105,11 +132,16 @@ export default function ClientsPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de clientes</h3>
-        {loading ? (
-          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
-        ) : clients.length === 0 ? (
+        {clients.length === 0 ? (
           <p>Nenhum cliente cadastrado. Use o botão abaixo para cadastrar um cliente.</p>
         ) : (
           <table>
@@ -132,7 +164,7 @@ export default function ClientsPage() {
                   <td>
                     <div className="table-actions">
                       <button type="button" className="btn btn-outline" onClick={() => openEdit(c)}>Editar</button>
-                      <button type="button" className="btn btn-danger" onClick={() => handleRemove(c._id, c.name)} disabled={saving}>Remover</button>
+                      <button type="button" className="btn btn-danger" onClick={() => { setConfirmItemId(c._id); setConfirmItemName(c.name); setConfirmOpen(true); }} disabled={saving}>Remover</button>
                     </div>
                   </td>
                 </tr>
@@ -202,6 +234,17 @@ export default function ClientsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Confirmar exclusão"
+        message="Remover o cliente? Esta ação não pode ser desfeita."
+        itemName={confirmItemName}
+        confirmLabel="Excluir"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => { setConfirmOpen(false); setConfirmItemId(null); setConfirmItemName(''); }}
+        loading={saving}
+      />
     </div>
   );
 }

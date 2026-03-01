@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
+import ConfirmModal from '@/app/components/ConfirmModal';
+import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
 
 export default function FeaturesPage() {
   const router = useRouter();
@@ -21,6 +24,16 @@ export default function FeaturesPage() {
   const [editingData, setEditingData] = useState({ loggedHours: '', percentComplete: '', status: 'backlog', details: '', userStory: '', analystIds: [], attachments: [] });
   const [savingEdit, setSavingEdit] = useState(false);
   const [featureHistory, setFeatureHistory] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmItemId, setConfirmItemId] = useState(null);
+  const [confirmItemName, setConfirmItemName] = useState('');
+  const [filterName, setFilterName] = useState('');
+  const [page, setPage] = useState(1);
+  const debouncedFilterName = useDebouncedValue(filterName, 400);
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/features');
 
   function getProjectId(ref) {
     return ref && (typeof ref === 'object' ? ref._id : ref);
@@ -51,8 +64,22 @@ export default function FeaturesPage() {
 
   useEffect(() => {
     if (pathname !== '/features') return;
-    loadBase();
-  }, [pathname]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const [pRes, eRes, peopleRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/epics'),
+          fetch('/api/people'),
+        ]);
+        const [p, e, peopleList] = await Promise.all([pRes.json(), eRes.json(), peopleRes.json()]);
+        if (!cancelled) setProjects(p), setEpics(e), setPeople(peopleList);
+      } catch (err) {
+        if (!cancelled) setProjects([]), setEpics([]), setPeople([]), setError(err?.message || 'Erro ao carregar.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
     if (pathname !== '/features') return;
@@ -61,8 +88,22 @@ export default function FeaturesPage() {
       setLoading(false);
       return;
     }
-    loadFeatures();
-  }, [pathname, selectedProject]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const params = selectedProject ? '?projectId=' + selectedProject : '';
+        const res = await fetch('/api/features' + params);
+        const data = await res.json();
+        if (!cancelled) setFeatures(data);
+      } catch (err) {
+        if (!cancelled) setFeatures([]), setError(err?.message || 'Erro ao carregar features.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, selectedProject, refreshKey]);
 
   useEffect(() => {
     if (!editingFeature?._id) { setFeatureHistory([]); return; }
@@ -85,18 +126,6 @@ export default function FeaturesPage() {
       loadFeatures();
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleRemoveFeature(id, name) {
-    if (!confirm(`Remover a feature "${name}"? Esta ação não pode ser desfeita.`)) return;
-    setSavingEdit(true);
-    try {
-      await fetch(`/api/features/${id}`, { method: 'DELETE' });
-      setEditingFeature(null);
-      loadFeatures();
-    } finally {
-      setSavingEdit(false);
     }
   }
 
@@ -146,13 +175,20 @@ export default function FeaturesPage() {
   const filteredFeatures = selectedProject
     ? features.filter((f) => getProjectId(f.projectId) === selectedProject)
     : features;
-  const featuresByEpic = filteredFeatures.reduce((acc, f) => {
+  const searchFiltered = debouncedFilterName.trim()
+    ? filteredFeatures.filter((f) => (f.name || '').toLowerCase().includes(debouncedFilterName.toLowerCase().trim()))
+    : filteredFeatures;
+  useEffect(() => { setPage(1); }, [selectedProject, debouncedFilterName]);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(searchFiltered.length / PAGE_SIZE));
+  const paginatedFeatures = searchFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const featuresByEpic = paginatedFeatures.reduce((acc, f) => {
     const eid = (typeof f.epicId === 'object' ? f.epicId?._id : f.epicId) || 'none';
     if (!acc[eid]) acc[eid] = [];
     acc[eid].push(f);
     return acc;
   }, {});
-  const epicOrder = [...new Set(filteredFeatures.map((f) => (typeof f.epicId === 'object' ? f.epicId?._id : f.epicId)).filter(Boolean))];
+  const epicOrder = [...new Set(paginatedFeatures.map((f) => (typeof f.epicId === 'object' ? f.epicId?._id : f.epicId)).filter(Boolean))];
   function epicName(epicId) {
     const epic = epics.find((e) => e._id === epicId);
     return (epic && epic.name) || '—';
@@ -175,6 +211,8 @@ export default function FeaturesPage() {
     });
   }
 
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header">
@@ -187,26 +225,39 @@ export default function FeaturesPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Lista de features</h3>
           <FilterBox
-            hasActiveFilters={selectedProject !== ''}
-            onClear={() => setSelectedProject('')}
+            hasActiveFilters={selectedProject !== '' || (filterName || '').trim() !== ''}
+            onClear={() => { setSelectedProject(''); setFilterName(''); setPage(1); }}
           >
-            <select className="filter-select" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+            <select className="filter-select" value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setPage(1); }}>
               <option value="">Selecione um projeto...</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>{p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})</option>
               ))}
             </select>
+            <input
+              type="text"
+              className="filter-select"
+              placeholder="Buscar por nome"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              style={{ minWidth: 180 }}
+            />
           </FilterBox>
         </div>
 
         {!selectedProject ? (
           <p style={{ color: 'var(--text-muted)' }}>Selecione um projeto acima para listar as features agrupadas por épico.</p>
-        ) : loading ? (
-          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : filteredFeatures.length === 0 ? (
           <p>Nenhuma feature encontrada para este projeto.</p>
         ) : (
@@ -260,7 +311,7 @@ export default function FeaturesPage() {
                               }}>
                               Editar
                             </button>
-                            <button type="button" className="btn btn-danger" onClick={() => handleRemoveFeature(f._id, f.name)} disabled={savingEdit}>Remover</button>
+                            <button type="button" className="btn btn-danger" onClick={() => { setConfirmItemId(f._id); setConfirmItemName(f.name || f.code); setConfirmOpen(true); }} disabled={savingEdit}>Remover</button>
                           </div>
                         </td>
                       </tr>
@@ -269,8 +320,26 @@ export default function FeaturesPage() {
                 </table>
               </div>
             ))}
+            {searchFiltered.length > PAGE_SIZE && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Anterior</button>
+                <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Página {page} de {totalPages}</span>
+                <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Próxima</button>
+              </div>
+            )}
           </>
         )}
+
+        <ConfirmModal
+          open={confirmOpen}
+          title="Confirmar exclusão"
+          message="Remover esta feature? Esta ação não pode ser desfeita."
+          itemName={confirmItemName}
+          confirmLabel="Excluir"
+          onConfirm={handleConfirmRemove}
+          onCancel={() => { setConfirmOpen(false); setConfirmItemId(null); setConfirmItemName(''); }}
+          loading={savingEdit}
+        />
 
         {editingFeature && (
           <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>

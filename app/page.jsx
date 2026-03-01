@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useVisibilityRefresh } from './hooks/useVisibilityRefresh';
 import Link from 'next/link';
-import LoadingSpinner from './components/LoadingSpinner';
+import LoadingOverlay from './components/LoadingOverlay';
 import { getProjectHealth } from '@/lib/projectHealth';
 import {
   BarChart,
@@ -38,7 +39,11 @@ export default function Home() {
   const [constatacoes, setConstatacoes] = useState([]);
   const [projectLogs, setProjectLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/');
 
   useEffect(() => {
     if (pathname !== '/') return;
@@ -46,27 +51,28 @@ export default function Home() {
     setLoading(true);
     (async () => {
       try {
-        const [pRes, fRes, cRes, logsRes] = await Promise.all([
-          fetch('/api/projects'),
-          fetch('/api/features'),
-          fetch('/api/constatacoes'),
-          fetch('/api/project-logs'),
-        ]);
-        const [p, f, c, logs] = await Promise.all([pRes.json(), fRes.json(), cRes.json(), logsRes.json()]);
+        const res = await fetch('/api/dashboard');
+        const data = await res.json();
         if (!cancelled) {
-          setProjects(p);
-          setFeatures(f);
-          setConstatacoes(c || []);
-          setProjectLogs(logs || []);
+          setProjects(data.projects || []);
+          setFeatures(data.features || []);
+          setConstatacoes(data.constatacoes || []);
+          setProjectLogs(data.projectLogs || []);
         }
-      } catch (_) {
-        if (!cancelled) setProjects([]), setFeatures([]), setConstatacoes([]), setProjectLogs([]);
+      } catch (err) {
+        if (!cancelled) {
+          setProjects([]);
+          setFeatures([]);
+          setConstatacoes([]);
+          setProjectLogs([]);
+          setError(err?.message || 'Erro ao carregar dados.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [pathname]);
+  }, [pathname, refreshKey]);
 
   function projectMetrics(projectId) {
     const list = features.filter((f) => getProjectId(f.projectId) === projectId);
@@ -133,18 +139,22 @@ export default function Home() {
     ? constatacoes.filter((c) => (c.projectId && (typeof c.projectId === 'object' ? c.projectId._id : c.projectId) === selectedProject) && c.type === 'risk').length
     : constatacoes.filter((c) => c.type === 'risk').length;
 
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <h2 className="page-title" style={{ marginBottom: 4 }}>Dashboard executivo</h2>
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)', background: 'var(--bg)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
       <p className="page-subtitle" style={{ marginBottom: 28 }}>
         Visão geral da saúde dos projetos, horas e alertas.
       </p>
 
-      {loading ? (
-        <div className="card">
-          <LoadingSpinner message="Aguarde, carregando..." />
-        </div>
-      ) : projects.length === 0 ? (
+      {projects.length === 0 ? (
         <div className="card">
           <p style={{ color: 'var(--text-muted)' }}>Nenhum projeto cadastrado. Use o menu para começar.</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 24 }}>
@@ -245,6 +255,55 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {filteredProjects.length > 0 && (() => {
+            const alertsList = buildAlerts();
+            const byClient = {};
+            filteredProjects.forEach((p) => {
+              const clientName = p.clientId?.name || p.client || '—';
+              if (!byClient[clientName]) {
+                byClient[clientName] = { projects: [], alertCount: 0, estimated: 0, logged: 0, progressSum: 0 };
+              }
+              const m = projectMetrics(p._id);
+              byClient[clientName].projects.push(p);
+              byClient[clientName].estimated += m.estimated;
+              byClient[clientName].logged += m.logged;
+              byClient[clientName].progressSum += m.percent || 0;
+              byClient[clientName].alertCount += alertsList.filter((a) => a.projectId === p._id).length;
+            });
+            const clientEntries = Object.entries(byClient);
+            if (clientEntries.length === 0) return null;
+            return (
+              <div className="card" style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, color: 'var(--text)' }}>Resumo por cliente</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                  {clientEntries.map(([clientName, data]) => {
+                    const count = data.projects.length;
+                    const avgProgress = count ? Math.round(data.progressSum / count) : 0;
+                    return (
+                      <div
+                        key={clientName}
+                        className="card"
+                        style={{
+                          borderLeft: '4px solid var(--primary)',
+                          padding: 16,
+                          background: 'var(--card)',
+                        }}
+                      >
+                        <h4 style={{ fontSize: 16, margin: '0 0 12px', color: 'var(--text)' }}>{clientName}</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, color: 'var(--text-muted)' }}>
+                          <span>Projetos: <strong style={{ color: 'var(--text)' }}>{count}</strong></span>
+                          <span>Progresso médio: <strong style={{ color: 'var(--text)' }}>{avgProgress}%</strong></span>
+                          <span>Horas: <strong style={{ color: 'var(--text)' }}>{data.logged.toFixed(0)}h</strong> / {data.estimated.toFixed(0)}h estimadas</span>
+                          <span>Alertas ativos: <strong style={{ color: data.alertCount > 0 ? 'var(--danger)' : 'var(--text)' }}>{data.alertCount}</strong></span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {alertsFiltered.length > 0 && (
             <div className="card" style={{ marginBottom: 24 }}>

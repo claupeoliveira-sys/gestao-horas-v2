@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
+import ConfirmModal from '@/app/components/ConfirmModal';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -23,7 +25,12 @@ export default function ProjectsPage() {
   const [editingProject, setEditingProject] = useState(null);
   const [editingMemberIds, setEditingMemberIds] = useState([]);
   const [filterClient, setFilterClient] = useState('');
-  const [filterStatus, setFilterStatus] = useState('active'); // 'active' | 'inactive' | 'all'
+  const [filterStatus, setFilterStatus] = useState('active');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmItemId, setConfirmItemId] = useState(null);
+  const [confirmItemName, setConfirmItemName] = useState('');
   const [form, setForm] = useState({
     name: '', clientId: '', description: '',
     startDate: '', endDate: '', status: 'active',
@@ -49,6 +56,11 @@ export default function ProjectsPage() {
       setPeople(peopleData);
       setClients(clientsData);
       setTeams(teamsData || []);
+    } catch (_) {
+      setProjects([]);
+      setPeople([]);
+      setClients([]);
+      setTeams([]);
     } finally {
       setLoading(false);
     }
@@ -76,12 +88,41 @@ export default function ProjectsPage() {
     return p.client || '—';
   }
 
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/projects');
+
   useEffect(() => {
     if (pathname !== '/projects') return;
+    let cancelled = false;
     setDataLoaded(false);
     setLoading(true);
-    loadProjects();
-  }, [pathname]);
+    (async () => {
+      try {
+        const [pRes, peopleRes, clientsRes, teamsRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/people'),
+          fetch('/api/clients'),
+          fetch('/api/teams'),
+        ]);
+        const [data, peopleData, clientsData, teamsData] = await Promise.all([
+          pRes.json(),
+          peopleRes.json(),
+          clientsRes.json(),
+          teamsRes.json(),
+        ]);
+        if (!cancelled) {
+          setProjects(data);
+          setPeople(peopleData);
+          setClients(clientsData);
+          setTeams(teamsData || []);
+        }
+      } catch (err) {
+        if (!cancelled) setProjects([]), setPeople([]), setClients([]), setTeams([]), setError(err?.message || 'Erro ao carregar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
     if (!loading && pathname === '/projects') setDataLoaded(true);
@@ -104,11 +145,14 @@ export default function ProjectsPage() {
     }
   }
 
-  async function handleRemove(id, name) {
-    if (!confirm(`Remover o projeto "${name}"? Épicos e features vinculados podem ficar órfãos. Esta ação não pode ser desfeita.`)) return;
+  async function handleConfirmRemove() {
+    if (!confirmItemId) return;
     setSaving(true);
     try {
-      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      await fetch(`/api/projects/${confirmItemId}`, { method: 'DELETE' });
+      setConfirmOpen(false);
+      setConfirmItemId(null);
+      setConfirmItemName('');
       loadProjects();
     } finally {
       setSaving(false);
@@ -152,6 +196,8 @@ export default function ProjectsPage() {
     return true;
   });
 
+  if (loading || !dataLoaded) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header">
@@ -163,6 +209,13 @@ export default function ProjectsPage() {
           ← Voltar
         </button>
       </div>
+
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
@@ -184,9 +237,7 @@ export default function ProjectsPage() {
             </select>
           </FilterBox>
         </div>
-        {(loading || !dataLoaded) ? (
-          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
-        ) : projects.length === 0 ? (
+        {projects.length === 0 ? (
           <p>Nenhum projeto cadastrado. Use o botão abaixo para cadastrar um projeto.</p>
         ) : filteredProjects.length === 0 ? (
           <p>Nenhum projeto encontrado com os filtros selecionados.</p>
@@ -224,7 +275,7 @@ export default function ProjectsPage() {
                       >
                         Editar / Membros
                       </button>
-                      <button type="button" className="btn btn-danger" onClick={() => handleRemove(p._id, p.name)} disabled={saving}>Remover</button>
+                      <button type="button" className="btn btn-danger" onClick={() => { setConfirmItemId(p._id); setConfirmItemName(p.name); setConfirmOpen(true); }} disabled={saving}>Remover</button>
                     </div>
                   </td>
                 </tr>
@@ -380,6 +431,17 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Confirmar exclusão"
+        message="Remover o projeto? Épicos e features vinculados podem ficar órfãos. Esta ação não pode ser desfeita."
+        itemName={confirmItemName}
+        confirmLabel="Excluir"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => { setConfirmOpen(false); setConfirmItemId(null); setConfirmItemName(''); }}
+        loading={saving}
+      />
     </div>
   );
 }

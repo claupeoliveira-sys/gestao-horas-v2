@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
 import FilterBox from '@/app/components/FilterBox';
 
 const COLUMNS = [
@@ -24,6 +25,10 @@ export default function KanbanPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [infoFeature, setInfoFeature] = useState(null);
   const [showNotPrioritized, setShowNotPrioritized] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/kanban');
 
   async function loadFeatures() {
     setLoading(true);
@@ -38,25 +43,35 @@ export default function KanbanPage() {
     }
   }
 
-  async function loadProjects() {
-    try {
-      const res = await fetch('/api/projects');
-      const data = await res.json();
-      setProjects(data);
-    } catch (_) {
-      setProjects([]);
-    }
-  }
+  useEffect(() => {
+    if (pathname !== '/kanban') return;
+    let cancelled = false;
+    fetch('/api/projects')
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setProjects(data); })
+      .catch(() => { if (!cancelled) setProjects([]); });
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
     if (pathname !== '/kanban') return;
-    loadProjects();
-  }, [pathname]);
-
-  useEffect(() => {
-    if (pathname !== '/kanban') return;
-    loadFeatures();
-  }, [pathname, selectedProject]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (selectedProject) params.append('projectId', selectedProject);
+        const res = await fetch('/api/features?' + params.toString());
+        const data = await res.json();
+        if (!cancelled) setFeatures(data);
+      } catch (err) {
+        if (!cancelled) setFeatures([]), setError(err?.message || 'Erro ao carregar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, selectedProject, refreshKey]);
 
   function analystNames(f) {
     const ids = f.analystIds || [];
@@ -114,6 +129,8 @@ export default function KanbanPage() {
     } catch (_) {}
   }
 
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header" style={{ marginBottom: 24 }}>
@@ -123,6 +140,14 @@ export default function KanbanPage() {
             Tarefas em aberto por status. Arraste o card para outra coluna para atualizar.
           </p>
         </div>
+      </div>
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
+      <div style={{ marginBottom: 24 }}>
         <FilterBox
           hasActiveFilters={selectedProject !== ''}
           onClear={() => setSelectedProject('')}
@@ -159,13 +184,8 @@ export default function KanbanPage() {
         </p>
       </div>
 
-      {loading ? (
-        <div className="card">
-          <LoadingSpinner message="Aguarde, carregando..." />
-        </div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Backlog não priorizado:</span>
             <button
               type="button"
@@ -321,8 +341,7 @@ export default function KanbanPage() {
             </div>
           ))}
           </div>
-        </>
-      )}
+      </>
 
     </div>
   );

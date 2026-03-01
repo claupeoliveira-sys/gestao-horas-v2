@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
+import ConfirmModal from '@/app/components/ConfirmModal';
 
 export default function TeamsPage() {
   const router = useRouter();
@@ -16,6 +18,13 @@ export default function TeamsPage() {
     name: '',
     description: '',
   });
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmItemId, setConfirmItemId] = useState(null);
+  const [confirmItemName, setConfirmItemName] = useState('');
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/teams');
 
   async function loadTeams() {
     setLoading(true);
@@ -30,8 +39,21 @@ export default function TeamsPage() {
 
   useEffect(() => {
     if (pathname !== '/teams') return;
-    loadTeams();
-  }, [pathname]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/teams');
+        const data = await res.json();
+        if (!cancelled) setTeams(data);
+      } catch (_) {
+        if (!cancelled) setTeams([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   function openNew() {
     setEditingId(null);
@@ -74,18 +96,23 @@ export default function TeamsPage() {
     }
   }
 
-  async function handleRemove(id, name) {
-    if (!confirm(`Remover o time "${name}"? Pessoas vinculadas ficarão sem time. Esta ação não pode ser desfeita.`)) return;
+  async function handleConfirmRemove() {
+    if (!confirmItemId) return;
     setSaving(true);
     try {
-      await fetch(`/api/teams/${id}`, { method: 'DELETE' });
-      if (editingId === id) setEditingId(null);
+      await fetch(`/api/teams/${confirmItemId}`, { method: 'DELETE' });
+      setConfirmOpen(false);
+      setConfirmItemId(null);
+      setConfirmItemName('');
+      if (editingId === confirmItemId) setEditingId(null);
       setFormOpen(false);
       loadTeams();
     } finally {
       setSaving(false);
     }
   }
+
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
 
   return (
     <div>
@@ -99,11 +126,16 @@ export default function TeamsPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Lista de times</h3>
-        {loading ? (
-          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
-        ) : teams.length === 0 ? (
+        {teams.length === 0 ? (
           <p>Nenhum time cadastrado. Use o botão abaixo para cadastrar.</p>
         ) : (
           <table>
@@ -124,7 +156,7 @@ export default function TeamsPage() {
                   <td>
                     <div className="table-actions">
                       <button type="button" className="btn btn-outline" onClick={() => openEdit(t)}>Editar</button>
-                      <button type="button" className="btn btn-danger" onClick={() => handleRemove(t._id, t.name)} disabled={saving}>Remover</button>
+                      <button type="button" className="btn btn-danger" onClick={() => { setConfirmItemId(t._id); setConfirmItemName(t.name); setConfirmOpen(true); }} disabled={saving}>Remover</button>
                     </div>
                   </td>
                 </tr>
@@ -167,6 +199,17 @@ export default function TeamsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Confirmar exclusão"
+        message="Remover o time? Pessoas vinculadas ficarão sem time. Esta ação não pode ser desfeita."
+        itemName={confirmItemName}
+        confirmLabel="Excluir"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => { setConfirmOpen(false); setConfirmItemId(null); setConfirmItemName(''); }}
+        loading={saving}
+      />
     </div>
   );
 }

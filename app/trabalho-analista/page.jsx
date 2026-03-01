@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 
 const STATUS_LABEL = {
   backlog: 'Backlog',
@@ -33,6 +34,10 @@ export default function TrabalhoAnalistaPage() {
   const [isAdmin, setIsAdmin] = useState(true);
   const [savingHoursId, setSavingHoursId] = useState(null);
   const [inlineHours, setInlineHours] = useState({});
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/trabalho-analista');
 
   useEffect(() => {
     if (pathname !== '/trabalho-analista') return;
@@ -66,12 +71,14 @@ export default function TrabalhoAnalistaPage() {
             setSelectedAnalyst(sessionData.user.personId);
           }
         }
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'Erro ao carregar.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [pathname]);
+  }, [pathname, refreshKey]);
 
   const featuresByAnalyst = selectedAnalyst
     ? features.filter((f) =>
@@ -112,6 +119,8 @@ export default function TrabalhoAnalistaPage() {
     }
   }
 
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header">
@@ -125,6 +134,12 @@ export default function TrabalhoAnalistaPage() {
           ← Voltar
         </button>
       </div>
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
@@ -145,9 +160,7 @@ export default function TrabalhoAnalistaPage() {
           )}
         </div>
 
-        {loading ? (
-          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
-        ) : !selectedAnalyst ? (
+        {!selectedAnalyst ? (
           <p style={{ color: 'var(--text-muted)' }}>Selecione uma pessoa acima para ver as tarefas atribuídas.</p>
         ) : (
           <>

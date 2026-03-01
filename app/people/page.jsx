@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
+import ConfirmModal from '@/app/components/ConfirmModal';
+import { useDebouncedValue } from '@/app/hooks/useDebouncedValue';
 
 function generatePassword(length = 12) {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -32,7 +35,14 @@ export default function PeoplePage() {
   const [profilePerson, setProfilePerson] = useState(null);
   const [filterActive, setFilterActive] = useState('active');
   const [filterTeamId, setFilterTeamId] = useState('');
+  const [filterName, setFilterName] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmItemId, setConfirmItemId] = useState(null);
+  const [confirmItemName, setConfirmItemName] = useState('');
+  const debouncedFilterName = useDebouncedValue(filterName, 400);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -57,10 +67,28 @@ export default function PeoplePage() {
     }
   }
 
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/people');
+
   useEffect(() => {
     if (pathname !== '/people') return;
-    loadPeople();
-  }, [pathname]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const [res, tRes] = await Promise.all([fetch('/api/people'), fetch('/api/teams')]);
+        const [data, teamsData] = await Promise.all([res.json(), tRes.json()]);
+        if (!cancelled) {
+          setPeople(data);
+          setTeams(teamsData);
+        }
+      } catch (err) {
+        if (!cancelled) setPeople([]), setTeams([]), setError(err?.message || 'Erro ao carregar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   function openNew() {
     setEditingId(null);
@@ -148,16 +176,23 @@ export default function PeoplePage() {
       const tid = typeof p.teamId === 'object' ? p.teamId?._id : p.teamId;
       if (tid !== filterTeamId) return false;
     }
+    if (debouncedFilterName.trim()) {
+      const name = (p.name || '').toLowerCase();
+      if (!name.includes(debouncedFilterName.toLowerCase().trim())) return false;
+    }
     return true;
   });
 
-  async function handleRemove(id, name) {
-    if (!confirm(`Remover a pessoa "${name}"? Ela deixará de aparecer em projetos e features. Esta ação não pode ser desfeita.`)) return;
+  async function handleConfirmRemove() {
+    if (!confirmItemId) return;
     setSaving(true);
     try {
-      await fetch(`/api/people/${id}`, { method: 'DELETE' });
-      if (editingId === id) setEditingId(null);
-      if (profilePerson?._id === id) setProfilePerson(null);
+      await fetch(`/api/people/${confirmItemId}`, { method: 'DELETE' });
+      setConfirmOpen(false);
+      setConfirmItemId(null);
+      setConfirmItemName('');
+      if (editingId === confirmItemId) setEditingId(null);
+      if (profilePerson?._id === confirmItemId) setProfilePerson(null);
       setFormOpen(false);
       loadPeople();
     } finally {
@@ -169,6 +204,8 @@ export default function PeoplePage() {
     if (p.teamId && typeof p.teamId === 'object') return p.teamId.name;
     return p.team || '—';
   }
+
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
 
   return (
     <div>
@@ -182,13 +219,28 @@ export default function PeoplePage() {
         </button>
       </div>
 
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Colaboradores</h3>
           <FilterBox
-            hasActiveFilters={filterActive !== 'active' || filterTeamId !== ''}
-            onClear={() => { setFilterActive('active'); setFilterTeamId(''); }}
+            hasActiveFilters={filterActive !== 'active' || filterTeamId !== '' || (filterName || '').trim() !== ''}
+            onClear={() => { setFilterActive('active'); setFilterTeamId(''); setFilterName(''); }}
           >
+            <input
+              type="text"
+              className="filter-select"
+              placeholder="Buscar por nome"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              style={{ minWidth: 160 }}
+            />
             <select className="filter-select" value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
               <option value="active">Ativas</option>
               <option value="inactive">Inativas</option>
@@ -202,9 +254,7 @@ export default function PeoplePage() {
             </select>
           </FilterBox>
         </div>
-        {loading ? (
-          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
-        ) : people.length === 0 ? (
+        {people.length === 0 ? (
           <p>Nenhuma pessoa cadastrada. Use o botão abaixo para cadastrar.</p>
         ) : filteredPeople.length === 0 ? (
           <p>Nenhuma pessoa encontrada com os filtros selecionados.</p>
@@ -239,7 +289,7 @@ export default function PeoplePage() {
                     Ver perfil
                   </button>
                   <button type="button" className="btn btn-outline" onClick={() => openEdit(p)} style={{ fontSize: 12 }}>Editar</button>
-                  <button type="button" className="btn btn-danger" onClick={() => handleRemove(p._id, p.name)} disabled={saving} style={{ fontSize: 12 }}>Remover</button>
+                  <button type="button" className="btn btn-danger" onClick={() => { setConfirmItemId(p._id); setConfirmItemName(p.name); setConfirmOpen(true); }} disabled={saving} style={{ fontSize: 12 }}>Remover</button>
                 </div>
               </div>
             ))}
@@ -388,6 +438,17 @@ export default function PeoplePage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Confirmar exclusão"
+        message="Remover esta pessoa? Ela deixará de aparecer em projetos e features. Esta ação não pode ser desfeita."
+        itemName={confirmItemName}
+        confirmLabel="Excluir"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => { setConfirmOpen(false); setConfirmItemId(null); setConfirmItemName(''); }}
+        loading={saving}
+      />
     </div>
   );
 }

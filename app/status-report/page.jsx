@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
 import { getProjectHealth } from '@/lib/projectHealth';
 
@@ -31,6 +32,10 @@ function StatusReportContent() {
   const [savingLog, setSavingLog] = useState(null);
   const [diaryExpanded, setDiaryExpanded] = useState({});
   const [exportingPdf, setExportingPdf] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/status-report');
 
   useEffect(() => {
     const id = searchParams.get('project');
@@ -73,12 +78,14 @@ function StatusReportContent() {
           setConstatacoes(consta || []);
           setFeatureHistory(hist || []);
         }
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'Erro ao carregar.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [pathname]);
+  }, [pathname, refreshKey]);
 
   const filteredProjects = useMemo(() =>
     selectedProject ? projects.filter(p => p._id === selectedProject) : projects,
@@ -283,6 +290,8 @@ function StatusReportContent() {
     return list;
   }
 
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header" style={{ marginBottom: 24 }}>
@@ -290,6 +299,14 @@ function StatusReportContent() {
           <h2 className="page-title">Status Report</h2>
           <p className="page-subtitle">Visão executiva dos projetos e features.</p>
         </div>
+      </div>
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
+      <div style={{ marginBottom: 24 }}>
         <FilterBox
           hasActiveFilters={selectedProject !== ''}
           onClear={() => setSelectedProject('')}
@@ -304,8 +321,7 @@ function StatusReportContent() {
         </FilterBox>
       </div>
 
-      {loading ? <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div> :
-        filteredProjects.length === 0 ? <div className="card"><p>Nenhum projeto encontrado.</p></div> :
+      {filteredProjects.length === 0 ? <div className="card"><p>Nenhum projeto encontrado.</p></div> :
         filteredProjects.map(p => {
           const m = metrics(p._id);
           const timeline = unifiedTimeline(p._id);
@@ -593,7 +609,7 @@ function StatusReportContent() {
 
 export default function StatusReportPage() {
   return (
-    <Suspense fallback={<div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>}>
+    <Suspense fallback={<LoadingOverlay message="Aguarde, carregando..." />}>
       <StatusReportContent />
     </Suspense>
   );

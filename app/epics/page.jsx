@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 import FilterBox from '@/app/components/FilterBox';
+import ConfirmModal from '@/app/components/ConfirmModal';
 
 export default function EpicsPage() {
   const router = useRouter();
@@ -17,6 +19,13 @@ export default function EpicsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ projectId: '', name: '', description: '' });
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmItemId, setConfirmItemId] = useState(null);
+  const [confirmItemName, setConfirmItemName] = useState('');
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/epics');
 
   async function loadProjects() {
     try {
@@ -52,13 +61,42 @@ export default function EpicsPage() {
 
   useEffect(() => {
     if (pathname !== '/epics') return;
-    loadProjects();
-  }, [pathname]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/projects');
+        const data = await res.json();
+        if (!cancelled) setProjects(data);
+      } catch (err) {
+        if (!cancelled) setProjects([]), setError(err?.message || 'Erro ao carregar.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
     if (pathname !== '/epics') return;
-    loadEpicsAndFeatures(selectedProject);
-  }, [pathname, selectedProject]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const [eRes, fRes] = await Promise.all([
+          fetch('/api/epics?projectId=' + (selectedProject || '')),
+          fetch('/api/features?projectId=' + (selectedProject || '')),
+        ]);
+        const [e, f] = await Promise.all([eRes.json(), fRes.json()]);
+        if (!cancelled) {
+          setEpics(selectedProject ? e : []);
+          setFeatures(selectedProject ? f : []);
+        }
+      } catch (err) {
+        if (!cancelled) setEpics([]), setFeatures([]), setError(err?.message || 'Erro ao carregar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, selectedProject, refreshKey]);
 
   function openNew() {
     setEditingId(null);
@@ -105,12 +143,15 @@ export default function EpicsPage() {
     }
   }
 
-  async function handleRemove(id, name) {
-    if (!confirm(`Remover o épico "${name}"? Features vinculadas podem ficar órfãs. Esta ação não pode ser desfeita.`)) return;
+  async function handleConfirmRemove() {
+    if (!confirmItemId) return;
     setSaving(true);
     try {
-      await fetch(`/api/epics/${id}`, { method: 'DELETE' });
-      if (editingId === id) setEditingId(null);
+      await fetch(`/api/epics/${confirmItemId}`, { method: 'DELETE' });
+      setConfirmOpen(false);
+      setConfirmItemId(null);
+      setConfirmItemName('');
+      if (editingId === confirmItemId) setEditingId(null);
       setFormOpen(false);
       loadEpicsAndFeatures(selectedProject);
     } finally {
@@ -121,6 +162,8 @@ export default function EpicsPage() {
   function projectName(id) {
     return projects.find(p => p._id === id)?.name || '—';
   }
+
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
 
   return (
     <div>
@@ -133,6 +176,13 @@ export default function EpicsPage() {
           ← Voltar
         </button>
       </div>
+
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
@@ -151,8 +201,6 @@ export default function EpicsPage() {
         </div>
         {!selectedProject ? (
           <p style={{ color: 'var(--text-muted)' }}>Selecione um projeto acima para listar os épicos disponíveis.</p>
-        ) : loading ? (
-          <div className="card"><LoadingSpinner message="Aguarde, carregando..." /></div>
         ) : epics.length === 0 ? (
           <p>Nenhum épico cadastrado para este projeto. Use o botão abaixo para cadastrar um épico.</p>
         ) : (
@@ -176,7 +224,7 @@ export default function EpicsPage() {
                   <td>
                     <div className="table-actions">
                       <button type="button" className="btn btn-outline" onClick={() => openEdit(e)}>Editar</button>
-                      <button type="button" className="btn btn-danger" onClick={() => handleRemove(e._id, e.name)} disabled={saving}>Remover</button>
+                      <button type="button" className="btn btn-danger" onClick={() => { setConfirmItemId(e._id); setConfirmItemName(e.name); setConfirmOpen(true); }} disabled={saving}>Remover</button>
                     </div>
                   </td>
                 </tr>
@@ -227,6 +275,17 @@ export default function EpicsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Confirmar exclusão"
+        message="Remover o épico? Features vinculadas podem ficar órfãs. Esta ação não pode ser desfeita."
+        itemName={confirmItemName}
+        confirmLabel="Excluir"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => { setConfirmOpen(false); setConfirmItemId(null); setConfirmItemName(''); }}
+        loading={saving}
+      />
     </div>
   );
 }

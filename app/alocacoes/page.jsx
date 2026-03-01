@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import FilterBox from '@/app/components/FilterBox';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
+import ConfirmModal from '@/app/components/ConfirmModal';
 
 export default function AlocacoesPage() {
   const router = useRouter();
@@ -24,6 +27,9 @@ export default function AlocacoesPage() {
     startDate: '',
     endDate: '',
   });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/alocacoes');
 
   async function loadPeople() {
     const res = await fetch('/api/people');
@@ -52,20 +58,40 @@ export default function AlocacoesPage() {
   }
 
   useEffect(() => {
-    loadPeople();
-    loadProjects();
-  }, []);
+    if (pathname !== '/alocacoes') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [peopleRes, projectsRes] = await Promise.all([fetch('/api/people'), fetch('/api/projects')]);
+        const [peopleData, projectsData] = await Promise.all([peopleRes.json(), projectsRes.json()]);
+        if (!cancelled) setPeople(peopleData), setProjects(projectsData);
+      } catch (err) {
+        if (!cancelled) setPeople([]), setProjects([]), setError(err?.message || 'Erro ao carregar.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
     if (pathname !== '/alocacoes') return;
-    loadPeople();
-    loadProjects();
-    loadAllocations();
-  }, [pathname]);
-
-  useEffect(() => {
-    loadAllocations();
-  }, [filterPerson, filterProject]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (filterPerson) params.append('personId', filterPerson);
+        if (filterProject) params.append('projectId', filterProject);
+        const res = await fetch('/api/allocations?' + params.toString());
+        const data = await res.json();
+        if (!cancelled) setAllocations(data);
+      } catch (_) {
+        if (!cancelled) setAllocations([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, filterPerson, filterProject, refreshKey]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -134,13 +160,6 @@ export default function AlocacoesPage() {
     });
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Remover esta alocação?')) return;
-    await fetch(`/api/allocations/${id}`, { method: 'DELETE' });
-    loadAllocations();
-    if (editingId === id) cancelEdit();
-  }
-
   function personName(a) {
     const p = a.personId;
     return (typeof p === 'object' && p?.name) || '—';
@@ -150,6 +169,8 @@ export default function AlocacoesPage() {
     const p = a.projectId;
     return (typeof p === 'object' && p?.name) || '—';
   }
+
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
 
   return (
     <div>
@@ -168,6 +189,13 @@ export default function AlocacoesPage() {
           ← Voltar
         </button>
       </div>
+
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>
@@ -289,10 +317,14 @@ export default function AlocacoesPage() {
         >
           <h3 style={{ fontSize: 18 }}>Alocações</h3>
           <FilterBox
-            hasActiveFilters={filterPerson !== '' || filterProject !== ''}
-            onClear={() => { setFilterPerson(''); setFilterProject(''); }}
+            hasActiveFilters={filterPerson !== '' || filterProject !== '' || filterScope !== 'active'}
+            onClear={() => { setFilterPerson(''); setFilterProject(''); setFilterScope('active'); setPage(1); }}
           >
-            <select className="filter-select" value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)}>
+            <select className="filter-select" value={filterScope} onChange={(e) => { setFilterScope(e.target.value); setPage(1); }}>
+              <option value="active">Ativas</option>
+              <option value="historical">Históricas</option>
+            </select>
+            <select className="filter-select" value={filterPerson} onChange={(e) => { setFilterPerson(e.target.value); setPage(1); }}>
               <option value="">Todos colaboradores</option>
               {people.map((p) => (
                 <option key={p._id} value={p._id}>
@@ -300,7 +332,7 @@ export default function AlocacoesPage() {
                 </option>
               ))}
             </select>
-            <select className="filter-select" value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
+            <select className="filter-select" value={filterProject} onChange={(e) => { setFilterProject(e.target.value); setPage(1); }}>
               <option value="">Todos projetos</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>
@@ -310,9 +342,7 @@ export default function AlocacoesPage() {
             </select>
           </FilterBox>
         </div>
-        {loading ? (
-          <p>Carregando...</p>
-        ) : allocations.length === 0 ? (
+        {scopeFiltered.length === 0 ? (
           <p>Nenhuma alocação cadastrada.</p>
         ) : (
           <table>
@@ -328,7 +358,7 @@ export default function AlocacoesPage() {
               </tr>
             </thead>
             <tbody>
-              {allocations.map((a) => (
+              {paginatedAllocations.map((a) => (
                 <tr key={a._id}>
                   <td>{personName(a)}</td>
                   <td>{projectName(a)}</td>
@@ -360,7 +390,8 @@ export default function AlocacoesPage() {
                         color: 'var(--danger)',
                         borderColor: 'var(--danger)',
                       }}
-                      onClick={() => handleDelete(a._id)}
+                      onClick={() => { setConfirmId(a._id); setConfirmOpen(true); }}
+                      disabled={saving}
                     >
                       Remover
                     </button>
@@ -370,7 +401,24 @@ export default function AlocacoesPage() {
             </tbody>
           </table>
         )}
+        {scopeFiltered.length > PAGE_SIZE && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Anterior</button>
+            <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Página {page} de {totalPages}</span>
+            <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Próxima</button>
+          </div>
+        )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Confirmar exclusão"
+        message="Remover esta alocação?"
+        confirmLabel="Excluir"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => { setConfirmOpen(false); setConfirmId(null); }}
+        loading={saving}
+      />
     </div>
   );
 }

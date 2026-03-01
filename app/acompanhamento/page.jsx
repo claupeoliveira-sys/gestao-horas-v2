@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import FilterBox from '@/app/components/FilterBox';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 
 const FEEDBACK_TYPES = {
   positive: 'Positivo',
@@ -35,6 +37,8 @@ export default function AcompanhamentoPage() {
   const [filterFollowUp, setFilterFollowUp] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState({
     personId: '',
     projectId: '',
@@ -48,6 +52,9 @@ export default function AcompanhamentoPage() {
     followUpDate: '',
     tags: '',
   });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useVisibilityRefresh(() => setRefreshKey((k) => k + 1), pathname === '/acompanhamento');
 
   async function loadPeople() {
     const res = await fetch('/api/people');
@@ -78,20 +85,42 @@ export default function AcompanhamentoPage() {
   }
 
   useEffect(() => {
-    loadPeople();
-    loadProjects();
-  }, []);
+    if (pathname !== '/acompanhamento') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [peopleRes, projectsRes] = await Promise.all([fetch('/api/people'), fetch('/api/projects')]);
+        const [peopleData, projectsData] = await Promise.all([peopleRes.json(), projectsRes.json()]);
+        if (!cancelled) setPeople(peopleData), setProjects(projectsData);
+      } catch (err) {
+        if (!cancelled) setPeople([]), setProjects([]), setError(err?.message || 'Erro ao carregar.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
     if (pathname !== '/acompanhamento') return;
-    loadPeople();
-    loadProjects();
-    loadFeedbacks();
-  }, [pathname]);
-
-  useEffect(() => {
-    loadFeedbacks();
-  }, [filterPerson, filterProject, filterType, filterFollowUp]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (filterPerson) params.append('personId', filterPerson);
+        if (filterProject) params.append('projectId', filterProject);
+        if (filterType) params.append('type', filterType);
+        if (filterFollowUp) params.append('followUpStatus', filterFollowUp);
+        const res = await fetch('/api/feedbacks?' + params.toString());
+        const data = await res.json();
+        if (!cancelled) setFeedbacks(data);
+      } catch (err) {
+        if (!cancelled) setFeedbacks([]), setError(err?.message || 'Erro ao carregar feedbacks.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, filterPerson, filterProject, filterType, filterFollowUp, refreshKey]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -138,6 +167,12 @@ export default function AcompanhamentoPage() {
 
   const showRating = form.type === 'positive' || form.type === 'performance';
   const hasActiveFilters = filterPerson !== '' || filterProject !== '' || filterType !== '' || filterFollowUp !== '';
+  useEffect(() => { setPage(1); }, [filterPerson, filterProject, filterType, filterFollowUp]);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(feedbacks.length / PAGE_SIZE));
+  const paginatedFeedbacks = feedbacks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
 
   return (
     <div>
@@ -152,6 +187,13 @@ export default function AcompanhamentoPage() {
           ← Voltar
         </button>
       </div>
+
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16, color: 'var(--text)' }}>Novo feedback</h3>
@@ -301,26 +343,26 @@ export default function AcompanhamentoPage() {
       <div className="card">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ fontSize: 18, margin: 0, color: 'var(--text)' }}>Linha do tempo de feedbacks</h3>
-          <FilterBox hasActiveFilters={hasActiveFilters} onClear={() => { setFilterPerson(''); setFilterProject(''); setFilterType(''); setFilterFollowUp(''); }}>
-            <select className="filter-select" value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)}>
+          <FilterBox hasActiveFilters={hasActiveFilters} onClear={() => { setFilterPerson(''); setFilterProject(''); setFilterType(''); setFilterFollowUp(''); setPage(1); }}>
+            <select className="filter-select" value={filterPerson} onChange={(e) => { setFilterPerson(e.target.value); setPage(1); }}>
               <option value="">Todos colaboradores</option>
               {people.map((p) => (
                 <option key={p._id} value={p._id}>{p.name}</option>
               ))}
             </select>
-            <select className="filter-select" value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
+            <select className="filter-select" value={filterProject} onChange={(e) => { setFilterProject(e.target.value); setPage(1); }}>
               <option value="">Todos projetos</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>{p.name}</option>
               ))}
             </select>
-            <select className="filter-select" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+            <select className="filter-select" value={filterType} onChange={(e) => { setFilterType(e.target.value); setPage(1); }}>
               <option value="">Todos os tipos</option>
               {Object.entries(FEEDBACK_TYPES).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
-            <select className="filter-select" value={filterFollowUp} onChange={(e) => setFilterFollowUp(e.target.value)}>
+            <select className="filter-select" value={filterFollowUp} onChange={(e) => { setFilterFollowUp(e.target.value); setPage(1); }}>
               <option value="">Qualquer follow-up</option>
               {Object.entries(FOLLOW_UP_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
@@ -329,13 +371,12 @@ export default function AcompanhamentoPage() {
           </FilterBox>
         </div>
 
-        {loading ? (
-          <p style={{ color: 'var(--text-muted)' }}>Carregando...</p>
-        ) : feedbacks.length === 0 ? (
+        {feedbacks.length === 0 ? (
           <p style={{ color: 'var(--text-muted)' }}>Nenhum feedback com os filtros selecionados.</p>
         ) : (
+          <>
           <div className="feedback-timeline">
-            {feedbacks.map((f) => {
+            {paginatedFeedbacks.map((f) => {
               const isPending = f.followUpStatus === 'pending';
               const impactClass = f.impactLevel === 'high' ? 'badge-impact-high' : f.impactLevel === 'low' ? 'badge-impact-low' : 'badge-impact-medium';
               const followClass = f.followUpStatus === 'done' ? 'badge-done' : f.followUpStatus === 'in_progress' ? 'badge-paused' : 'badge-follow-pending';
@@ -382,6 +423,14 @@ export default function AcompanhamentoPage() {
               );
             })}
           </div>
+          {feedbacks.length > PAGE_SIZE && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>Anterior</button>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Página {page} de {totalPages}</span>
+              <button type="button" className="btn btn-ghost" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>Próxima</button>
+            </div>
+          )}
+          </>
         )}
       </div>
 

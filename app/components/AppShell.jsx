@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import BuildInfo from './BuildInfo';
 import ThemeToggle from './ThemeToggle';
+import NotificationBell from './NotificationBell';
+import Link from 'next/link';
 
 const NAV_ICONS = {
   home: '🏠',
@@ -69,6 +71,10 @@ export default function AppShell({ children }) {
       .then((data) => setAlertCount(data.total || 0))
       .catch(() => setAlertCount(0));
   }, [isPublic, user]);
+
+  useEffect(() => {
+    fetch('/api/warmup').catch(() => {});
+  }, []);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -167,6 +173,8 @@ export default function AppShell({ children }) {
       <main className="main-content">
         <div className="page-content" style={{ paddingTop: 6, paddingRight: 150 }}>
           <div className="top-bar-actions" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <NotificationBell />
+            <Link href="/perfil" className="btn btn-ghost" style={{ fontSize: 14 }} title="Meu perfil">Perfil</Link>
             <ThemeToggle />
             <BuildInfo />
           </div>

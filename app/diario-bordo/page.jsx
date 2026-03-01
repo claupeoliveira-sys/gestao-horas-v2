@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import FilterBox from '@/app/components/FilterBox';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
+import LoadingOverlay from '@/app/components/LoadingOverlay';
+import { useVisibilityRefresh } from '@/app/hooks/useVisibilityRefresh';
 
 const SOURCE_LABELS = {
   email: 'E-mail',
@@ -21,6 +22,8 @@ export default function DiarioBordoPage() {
   const [filterSource, setFilterSource] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     source: 'status_report',
@@ -49,13 +52,33 @@ export default function DiarioBordoPage() {
   }
 
   useEffect(() => {
-    loadProjects();
-  }, []);
+    let cancelled = false;
+    fetch('/api/projects')
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setProjects(data); })
+      .catch(() => { if (!cancelled) setProjects([]); });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
 
   useEffect(() => {
     if (pathname !== '/diario-bordo') return;
-    loadLogs();
-  }, [pathname, selectedProject]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (selectedProject) params.append('projectId', selectedProject);
+        const res = await fetch('/api/project-logs?' + params.toString());
+        const data = await res.json();
+        if (!cancelled) setLogs(data);
+      } catch (err) {
+        if (!cancelled) setLogs([]), setError(err?.message || 'Erro ao carregar.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, selectedProject, refreshKey]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -90,6 +113,8 @@ export default function DiarioBordoPage() {
   const sortedLogs = [...filteredLogs].sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
   const hasActiveFilters = selectedProject !== '' || filterSource !== '';
 
+  if (loading) return <LoadingOverlay message="Aguarde, carregando..." />;
+
   return (
     <div>
       <div className="page-header">
@@ -103,6 +128,12 @@ export default function DiarioBordoPage() {
           ← Voltar
         </button>
       </div>
+      {error && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--danger)' }}>
+          <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={() => { setError(''); setRefreshKey((k) => k + 1); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16, color: 'var(--text)' }}>Novo registro</h3>
@@ -240,9 +271,7 @@ export default function DiarioBordoPage() {
           </FilterBox>
         </div>
 
-        {loading ? (
-          <LoadingSpinner message="Carregando..." />
-        ) : sortedLogs.length === 0 ? (
+        {sortedLogs.length === 0 ? (
           <p style={{ color: 'var(--text-muted)' }}>Nenhum registro com os filtros selecionados.</p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
