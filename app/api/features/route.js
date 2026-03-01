@@ -28,17 +28,22 @@ export async function GET(req) {
     return NextResponse.json(features);
   } catch (err) {
     console.error('GET /api/features', err);
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json({ error: err?.message || 'Erro ao carregar features' }, { status: 500 });
   }
 }
 
 export async function POST(req) {
-  await connectDB();
-  const body = await req.json();
-  if (!body.code && body.projectId) {
-    const count = await Feature.countDocuments({ projectId: body.projectId });
-    body.code = `FEAT-${String(count + 1).padStart(3, '0')}`;
+  try {
+    await connectDB();
+    const body = await req.json();
+    if (!body.code && body.projectId) {
+      const count = await Feature.countDocuments({ projectId: body.projectId });
+      body.code = `FEAT-${String(count + 1).padStart(3, '0')}`;
+    }
+    const feature = await Feature.create(body);
+    return NextResponse.json(feature, { status: 201 });
+  } catch (err) {
+    console.error('POST /api/features', err);
+    return NextResponse.json({ error: err?.message || 'Erro ao criar feature' }, { status: 500 });
   }
-  const feature = await Feature.create(body);
-  return NextResponse.json(feature, { status: 201 });
 }
