@@ -194,8 +194,11 @@ function StatusReportContent() {
           <h2 className="page-title">Status Report</h2>
           <p className="page-subtitle">Visão executiva dos projetos e features.</p>
         </div>
-        <FilterBox>
-          <select style={{ minWidth: 220 }} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+        <FilterBox
+          hasActiveFilters={selectedProject !== ''}
+          onClear={() => setSelectedProject('')}
+        >
+          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             <option value="">Todos os projetos</option>
             {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({clientName(p)})</option>)}
           </select>

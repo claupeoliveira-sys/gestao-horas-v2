@@ -167,14 +167,17 @@ export default function ProjectsPage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Lista de projetos</h3>
-          <FilterBox>
-            <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={{ minWidth: 180 }}>
+          <FilterBox
+            hasActiveFilters={filterClient !== '' || filterStatus !== 'active'}
+            onClear={() => { setFilterClient(''); setFilterStatus('active'); }}
+          >
+            <select value={filterClient} onChange={e => setFilterClient(e.target.value)}>
               <option value="">Todos os clientes</option>
               {clients.map((c) => (
                 <option key={c._id} value={c._id}>{c.name}</option>
               ))}
             </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ minWidth: 140 }}>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="active">Ativos</option>
               <option value="inactive">Inativos</option>
               <option value="all">Todos</option>

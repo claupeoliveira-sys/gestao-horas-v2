@@ -148,7 +148,7 @@ export default function AppShell({ children }) {
         </div>
       </aside>
       <main className="main-content">
-        <div style={{ position: 'relative', minHeight: '100%', paddingTop: 6, paddingRight: 150 }}>
+        <div className="page-content" style={{ paddingTop: 6, paddingRight: 150 }}>
           <BuildInfo />
           {children}
         </div>

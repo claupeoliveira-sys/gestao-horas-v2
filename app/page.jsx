@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from './components/LoadingSpinner';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 const DAYS_NEAR_DEADLINE = 15;
 
@@ -194,6 +204,51 @@ export default function Home() {
               <div className="kpi-label">Riscos (constatações)</div>
             </div>
           </div>
+
+          {filteredProjects.length > 0 && (
+            <div className="card" style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, color: 'var(--text)' }}>Horas estimadas vs. lançadas por projeto</h3>
+              <div style={{ width: '100%', height: 320 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={filteredProjects.map((p) => {
+                      const m = projectMetrics(p._id);
+                      const shortName = (p.clientId?.name || p.client || '—') + ' — ' + p.name;
+                      return {
+                        name: shortName.length > 28 ? shortName.slice(0, 26) + '…' : shortName,
+                        estimadas: Math.round(m.estimated * 10) / 10,
+                        lançadas: Math.round(m.logged * 10) / 10,
+                      };
+                    })}
+                    margin={{ top: 10, right: 20, left: 10, bottom: 60 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+                      angle={-35}
+                      textAnchor="end"
+                      height={70}
+                    />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)' }} stroke="var(--text-muted)" />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: 13,
+                      }}
+                      formatter={(value, name) => [`${Number(value).toFixed(1)}h`, name === 'estimadas' ? 'Horas estimadas' : 'Horas lançadas']}
+                      labelFormatter={(label) => label}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 13 }} formatter={(value) => (value === 'estimadas' ? 'Horas estimadas' : 'Horas lançadas')} />
+                    <Bar dataKey="estimadas" fill="var(--primary)" radius={[4, 4, 0, 0]} name="estimadas" />
+                    <Bar dataKey="lançadas" fill="var(--primary-light)" radius={[4, 4, 0, 0]} name="lançadas" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
 
           {alertsFiltered.length > 0 && (
             <div className="card" style={{ marginBottom: 24 }}>

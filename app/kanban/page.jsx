@@ -123,12 +123,11 @@ export default function KanbanPage() {
             Tarefas em aberto por status. Arraste o card para outra coluna para atualizar.
           </p>
         </div>
-        <FilterBox>
-          <select
-            style={{ minWidth: 200 }}
-            value={selectedProject}
-            onChange={(e) => setSelectedProject(e.target.value)}
-          >
+        <FilterBox
+          hasActiveFilters={selectedProject !== ''}
+          onClear={() => setSelectedProject('')}
+        >
+          <select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
             <option value="">Todos os projetos</option>
             {projects.map((p) => (
               <option key={p._id} value={p._id}>

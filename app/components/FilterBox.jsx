@@ -1,6 +1,6 @@
 'use client';
 
-export default function FilterBox({ children, style = {} }) {
+export default function FilterBox({ children, onClear, hasActiveFilters, style = {} }) {
   return (
     <div
       className="filter-box"
@@ -9,7 +9,7 @@ export default function FilterBox({ children, style = {} }) {
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: 12,
-        padding: '10px 14px',
+        padding: '12px 16px',
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius)',
         background: 'var(--bg-subtle)',
@@ -30,9 +30,14 @@ export default function FilterBox({ children, style = {} }) {
       >
         Filtros
       </span>
-      <span style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} aria-hidden />
+      <span style={{ width: 1, height: 22, background: 'var(--border)', flexShrink: 0 }} aria-hidden />
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         {children}
+        {onClear && hasActiveFilters && (
+          <button type="button" className="btn btn-ghost btn-clear-filters" onClick={onClear}>
+            Limpar filtros
+          </button>
+        )}
       </div>
     </div>
   );

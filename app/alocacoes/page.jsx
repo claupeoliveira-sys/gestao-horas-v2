@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import FilterBox from '@/app/components/FilterBox';
 
 export default function AlocacoesPage() {
   const router = useRouter();
@@ -287,12 +288,11 @@ export default function AlocacoesPage() {
           }}
         >
           <h3 style={{ fontSize: 18 }}>Alocações</h3>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <select
-              value={filterPerson}
-              onChange={(e) => setFilterPerson(e.target.value)}
-              style={{ minWidth: 180 }}
-            >
+          <FilterBox
+            hasActiveFilters={filterPerson !== '' || filterProject !== ''}
+            onClear={() => { setFilterPerson(''); setFilterProject(''); }}
+          >
+            <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)}>
               <option value="">Todos colaboradores</option>
               {people.map((p) => (
                 <option key={p._id} value={p._id}>
@@ -300,11 +300,7 @@ export default function AlocacoesPage() {
                 </option>
               ))}
             </select>
-            <select
-              value={filterProject}
-              onChange={(e) => setFilterProject(e.target.value)}
-              style={{ minWidth: 180 }}
-            >
+            <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
               <option value="">Todos projetos</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>
@@ -312,7 +308,7 @@ export default function AlocacoesPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </FilterBox>
         </div>
         {loading ? (
           <p>Carregando...</p>

@@ -185,13 +185,16 @@ export default function PeoplePage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Colaboradores</h3>
-          <FilterBox>
-            <select value={filterActive} onChange={(e) => setFilterActive(e.target.value)} style={{ minWidth: 140 }}>
+          <FilterBox
+            hasActiveFilters={filterActive !== 'active' || filterTeamId !== ''}
+            onClear={() => { setFilterActive('active'); setFilterTeamId(''); }}
+          >
+            <select value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
               <option value="active">Ativas</option>
               <option value="inactive">Inativas</option>
               <option value="all">Todas</option>
             </select>
-            <select value={filterTeamId} onChange={(e) => setFilterTeamId(e.target.value)} style={{ minWidth: 180 }}>
+            <select value={filterTeamId} onChange={(e) => setFilterTeamId(e.target.value)}>
               <option value="">Todos os times</option>
               {teams.map((t) => (
                 <option key={t._id} value={t._id}>{t.name}</option>
