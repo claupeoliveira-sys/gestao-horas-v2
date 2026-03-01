@@ -6,6 +6,7 @@
   --primary-light: #3b82f6;
   --bg: #f1f5f9;
   --bg-subtle: #f8fafc;
+  --bg-page: linear-gradient(160deg, #eff6ff 0%, #f8fafc 50%, #f1f5f9 100%);
   --card: #ffffff;
   --text: #0f172a;
   --text-muted: #475569;
@@ -20,13 +21,59 @@
   --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.08);
   --content-max-width: 1280px;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 22px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --sidebar-bg: linear-gradient(180deg, #0f172a 0%, #020617 100%);
+  --badge-active-bg: #d1fae5;
+  --badge-paused-bg: #fef3c7;
+  --badge-done-bg: #dbeafe;
+  --alert-danger-bg: #fef2f2;
+  --alert-warning-bg: #fffbeb;
+  --collapsible-hover: #e2e8f0;
+  --collapsible-hover-border: #cbd5e1;
+  --btn-ghost-hover-bg: rgba(248, 250, 252, 0.8);
+  --scrollbar-thumb-hover: #cbd5e1;
+  --card-hover-border: #e2e8f0;
+}
+
+html.dark {
+  --bg: #0f172a;
+  --bg-subtle: #1e293b;
+  --bg-page: linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  --card: #1e293b;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --border-light: #475569;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.3);
+  --sidebar-bg: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  --badge-active-bg: rgba(5, 150, 105, 0.25);
+  --badge-paused-bg: rgba(217, 119, 6, 0.25);
+  --badge-done-bg: rgba(37, 99, 235, 0.25);
+  --alert-danger-bg: rgba(220, 38, 38, 0.15);
+  --alert-warning-bg: rgba(217, 119, 6, 0.15);
+  --collapsible-hover: #334155;
+  --collapsible-hover-border: #475569;
+  --btn-ghost-hover-bg: rgba(51, 65, 85, 0.5);
+  --scrollbar-thumb-hover: #64748b;
+  --card-hover-border: #475569;
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  background: linear-gradient(160deg, #eff6ff 0%, #f8fafc 50%, #f1f5f9 100%);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  background: var(--bg-page);
   color: var(--text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -36,13 +83,13 @@ body {
 
 .sidebar {
   width: 260px;
-  background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
-  border-right: 1px solid rgba(255,255,255,0.06);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
   padding: 28px 20px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  box-shadow: 4px 0 24px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-md);
 }
 
 .main-content {
@@ -93,18 +140,29 @@ body {
 }
 .nav-group-label:first-child { margin-top: 0; }
 
+.nav-alert-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  margin-left: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 .card {
   background: var(--card);
   border-radius: var(--radius);
   border: 1px solid var(--border-light);
-  padding: 28px 32px;
-  box-shadow: var(--shadow);
+  padding: 32px 40px;
+  box-shadow: var(--shadow-md);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .card + .card { margin-top: 24px; }
 .card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: #e2e8f0;
+  box-shadow: var(--shadow-lg);
+  border-color: var(--card-hover-border);
 }
 
 .btn {
@@ -143,10 +201,30 @@ body {
 }
 .btn-ghost:hover {
   border-color: var(--border);
-  background: rgba(248, 250, 252, 0.8);
+  background: var(--btn-ghost-hover-bg);
   color: var(--text);
 }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+.theme-toggle:hover {
+  background: var(--btn-ghost-hover-bg);
+  border-color: var(--border);
+}
+.theme-icon { font-size: 1.1rem; line-height: 1; }
 
 input, select, textarea {
   width: 100%;
@@ -174,18 +252,22 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Filtros padronizados */
+.filter-select,
+.filter-input,
 .filter-box select,
 .filter-box input[type="text"],
 .filter-box input[type="search"] {
   min-height: 38px;
   min-width: 160px;
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--text);
 }
+.filter-select:focus,
+.filter-input:focus,
 .filter-box select:focus,
 .filter-box input:focus {
   outline: none;
@@ -221,9 +303,13 @@ input:focus, select:focus, textarea:focus {
   font-weight: 500;
   display: inline-block;
 }
-.badge-active { background: #d1fae5; color: var(--success); }
-.badge-paused { background: #fef3c7; color: var(--warning); }
-.badge-done { background: #dbeafe; color: var(--primary); }
+.badge-active { background: var(--badge-active-bg); color: var(--success); }
+.badge-paused { background: var(--badge-paused-bg); color: var(--warning); }
+.badge-done { background: var(--badge-done-bg); color: var(--primary); }
+.badge-impact-low { background: var(--badge-done-bg); color: var(--primary); }
+.badge-impact-medium { background: var(--badge-paused-bg); color: var(--warning); }
+.badge-impact-high { background: var(--alert-danger-bg); color: var(--danger); }
+.badge-follow-pending { background: var(--alert-warning-bg); color: var(--warning); }
 
 table { width: 100%; border-collapse: collapse; }
 th, td {
@@ -252,8 +338,8 @@ tr:hover { background: var(--bg-subtle); }
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
   margin-bottom: 6px;
   color: var(--text);
   letter-spacing: -0.02em;
@@ -261,8 +347,8 @@ tr:hover { background: var(--bg-subtle); }
 }
 
 .page-subtitle {
-  font-size: 14px;
-  font-weight: 400;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
   color: var(--text-muted);
   line-height: 1.5;
 }
@@ -283,8 +369,8 @@ tr:hover { background: var(--bg-subtle); }
   transition: background 0.2s, border-color 0.2s;
 }
 .collapsible-trigger:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
+  background: var(--collapsible-hover);
+  border-color: var(--collapsible-hover-border);
 }
 .collapsible-trigger .chevron {
   transition: transform 0.2s;
@@ -359,18 +445,18 @@ tr:hover { background: var(--bg-subtle); }
   margin-bottom: 28px;
 }
 .dashboard-kpi .card {
-  padding: 22px 24px;
+  padding: 28px 32px;
   margin: 0;
 }
 .dashboard-kpi .kpi-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   color: var(--text);
   line-height: 1.2;
 }
 .dashboard-kpi .kpi-label {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--text-muted);
   margin-top: 6px;
 }
@@ -399,8 +485,8 @@ tr:hover { background: var(--bg-subtle); }
   background: var(--bg-subtle);
   border: 1px solid var(--border);
 }
-.dashboard-alerts li.alert-danger { border-left: 3px solid var(--danger); background: #fef2f2; }
-.dashboard-alerts li.alert-warning { border-left: 3px solid var(--warning); background: #fffbeb; }
+.dashboard-alerts li.alert-danger { border-left: 3px solid var(--danger); background: var(--alert-danger-bg); }
+.dashboard-alerts li.alert-warning { border-left: 3px solid var(--warning); background: var(--alert-warning-bg); }
 
 .kanban-board {
   scrollbar-width: thin;
@@ -409,7 +495,7 @@ tr:hover { background: var(--bg-subtle); }
 .kanban-board::-webkit-scrollbar { height: 8px; }
 .kanban-board::-webkit-scrollbar-track { background: var(--bg-subtle); border-radius: 4px; }
 .kanban-board::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.kanban-board::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+.kanban-board::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 .build-info { user-select: none; }
 

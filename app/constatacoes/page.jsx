@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import FilterBox from '@/app/components/FilterBox';
 
 const TIPOS = {
   observation: 'Observação',
@@ -260,26 +261,30 @@ export default function ConstatacoesPage() {
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
             alignItems: 'center',
             marginBottom: 16,
-            flexWrap: 'wrap',
-            gap: 12,
           }}
         >
-          <h3 style={{ fontSize: 18 }}>Lista de constatações</h3>
-          <select
-            value={filterProject}
-            onChange={(e) => setFilterProject(e.target.value)}
-            style={{ minWidth: 220 }}
+          <h3 style={{ fontSize: 18, margin: 0 }}>Lista de constatações</h3>
+          <FilterBox
+            hasActiveFilters={filterProject !== ''}
+            onClear={() => setFilterProject('')}
           >
-            <option value="">Todos os projetos</option>
-            {projects.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            <select
+              value={filterProject}
+              onChange={(e) => setFilterProject(e.target.value)}
+              className="filter-select"
+            >
+              <option value="">Todos os projetos</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </FilterBox>
         </div>
         {loading ? (
           <p>Carregando...</p>

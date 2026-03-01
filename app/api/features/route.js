@@ -23,7 +23,7 @@ export async function GET(req) {
   }
   const features = await Feature.find(filter)
     .populate('analystIds', 'name email')
-    .sort({ createdAt: -1 });
+    .sort({ order: 1, createdAt: 1 });
   return NextResponse.json(features);
 }
 

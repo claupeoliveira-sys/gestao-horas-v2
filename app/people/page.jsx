@@ -189,12 +189,12 @@ export default function PeoplePage() {
             hasActiveFilters={filterActive !== 'active' || filterTeamId !== ''}
             onClear={() => { setFilterActive('active'); setFilterTeamId(''); }}
           >
-            <select value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
+            <select className="filter-select" value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
               <option value="active">Ativas</option>
               <option value="inactive">Inativas</option>
               <option value="all">Todas</option>
             </select>
-            <select value={filterTeamId} onChange={(e) => setFilterTeamId(e.target.value)}>
+            <select className="filter-select" value={filterTeamId} onChange={(e) => setFilterTeamId(e.target.value)}>
               <option value="">Todos os times</option>
               {teams.map((t) => (
                 <option key={t._id} value={t._id}>{t.name}</option>

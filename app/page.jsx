@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from './components/LoadingSpinner';
+import { getProjectHealth } from '@/lib/projectHealth';
 import {
   BarChart,
   Bar,
@@ -35,6 +36,7 @@ export default function Home() {
   const [projects, setProjects] = useState([]);
   const [features, setFeatures] = useState([]);
   const [constatacoes, setConstatacoes] = useState([]);
+  const [projectLogs, setProjectLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState('');
 
@@ -44,19 +46,21 @@ export default function Home() {
     setLoading(true);
     (async () => {
       try {
-        const [pRes, fRes, cRes] = await Promise.all([
+        const [pRes, fRes, cRes, logsRes] = await Promise.all([
           fetch('/api/projects'),
           fetch('/api/features'),
           fetch('/api/constatacoes'),
+          fetch('/api/project-logs'),
         ]);
-        const [p, f, c] = await Promise.all([pRes.json(), fRes.json(), cRes.json()]);
+        const [p, f, c, logs] = await Promise.all([pRes.json(), fRes.json(), cRes.json(), logsRes.json()]);
         if (!cancelled) {
           setProjects(p);
           setFeatures(f);
           setConstatacoes(c || []);
+          setProjectLogs(logs || []);
         }
       } catch (_) {
-        if (!cancelled) setProjects([]), setFeatures([]), setConstatacoes([]);
+        if (!cancelled) setProjects([]), setFeatures([]), setConstatacoes([]), setProjectLogs([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -75,24 +79,16 @@ export default function Home() {
     return { total, done, blocked, percent: avg, estimated, logged };
   }
 
-  function projectHealth(p, metrics) {
-    if (p.status === 'finished') return 'green';
-    const members = p.memberIds || [];
-    const memberCount = Array.isArray(members) ? members.length : 0;
-    const endDate = p.endDate ? new Date(p.endDate) : null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  function lastLogDateForProject(projectId) {
+    const projectLogsForProject = projectLogs.filter((l) => (typeof l.projectId === 'object' ? l.projectId?._id : l.projectId) === projectId);
+    if (projectLogsForProject.length === 0) return null;
+    const dates = projectLogsForProject.map((l) => (l.date && new Date(l.date)) || (l.createdAt && new Date(l.createdAt))).filter(Boolean);
+    return dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null;
+  }
 
-    if (memberCount === 0) return 'red';
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(0, 0, 0, 0);
-      if (end < today) return 'red';
-      const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
-      if (daysLeft <= DAYS_NEAR_DEADLINE) return 'yellow';
-    }
-    if (metrics.blocked > 0) return 'yellow';
-    return 'green';
+  function projectHealth(p, metrics) {
+    const lastLog = lastLogDateForProject(p._id);
+    return getProjectHealth(p, metrics, lastLog);
   }
 
   function buildAlerts() {

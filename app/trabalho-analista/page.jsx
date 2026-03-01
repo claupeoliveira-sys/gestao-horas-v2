@@ -31,6 +31,8 @@ export default function TrabalhoAnalistaPage() {
   const [selectedAnalyst, setSelectedAnalyst] = useState('');
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(true);
+  const [savingHoursId, setSavingHoursId] = useState(null);
+  const [inlineHours, setInlineHours] = useState({});
 
   useEffect(() => {
     if (pathname !== '/trabalho-analista') return;
@@ -89,6 +91,25 @@ export default function TrabalhoAnalistaPage() {
     const id = getEpicId(epicId);
     const e = epics.find((x) => x._id === id);
     return (e && e.name) || '—';
+  }
+
+  async function saveInlineHours(featureId, value) {
+    const num = Number(value);
+    if (Number.isNaN(num) || num < 0) return;
+    setSavingHoursId(featureId);
+    try {
+      await fetch(`/api/features/${featureId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loggedHours: num }),
+      });
+      setFeatures((prev) =>
+        prev.map((f) => (f._id === featureId ? { ...f, loggedHours: num } : f))
+      );
+      setInlineHours((prev) => ({ ...prev, [featureId]: undefined }));
+    } finally {
+      setSavingHoursId(null);
+    }
   }
 
   return (
@@ -153,6 +174,7 @@ export default function TrabalhoAnalistaPage() {
                       <th>Épico</th>
                       <th>Status</th>
                       <th>Horas</th>
+                      <th>Lançar horas</th>
                       <th>Progresso</th>
                     </tr>
                   </thead>
@@ -165,6 +187,33 @@ export default function TrabalhoAnalistaPage() {
                         <td>{epicName(f.epicId)}</td>
                         <td>{STATUS_LABEL[f.status] || f.status}</td>
                         <td>{f.loggedHours ?? 0}h / {f.estimatedHours ?? 0}h</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.5}
+                              className="filter-input"
+                              style={{ width: 72 }}
+                              value={inlineHours[f._id] !== undefined ? inlineHours[f._id] : (f.loggedHours ?? 0)}
+                              onChange={(e) => setInlineHours((prev) => ({ ...prev, [f._id]: e.target.value }))}
+                              onBlur={(e) => {
+                                const v = e.target.value;
+                                if (v !== '' && String(f.loggedHours ?? 0) !== v) saveInlineHours(f._id, v);
+                              }}
+                            />
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>h</span>
+                            <button
+                              type="button"
+                              className="btn btn-outline"
+                              style={{ padding: '4px 10px', fontSize: 12 }}
+                              disabled={savingHoursId === f._id}
+                              onClick={() => saveInlineHours(f._id, inlineHours[f._id] !== undefined ? inlineHours[f._id] : f.loggedHours ?? 0)}
+                            >
+                              {savingHoursId === f._id ? '...' : 'Ok'}
+                            </button>
+                          </div>
+                        </td>
                         <td>
                           <div className="progress-bar" style={{ minWidth: 60, height: 8 }}>
                             <div className="progress-fill" style={{ width: `${f.percentComplete || 0}%` }} />

@@ -4,11 +4,13 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import FilterBox from '@/app/components/FilterBox';
+import { getProjectHealth } from '@/lib/projectHealth';
 
 const LOG_SOURCE_LABELS = {
   email: 'E-mail',
   meeting: 'Reunião',
   status_report: 'Reunião de Status Report',
+  other: 'Outro',
 };
 
 function StatusReportContent() {
@@ -20,11 +22,15 @@ function StatusReportContent() {
   const [features, setFeatures] = useState([]);
   const [projectLogs, setProjectLogs] = useState([]);
   const [allocations, setAllocations] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [constatacoes, setConstatacoes] = useState([]);
+  const [featureHistory, setFeatureHistory] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [loading, setLoading] = useState(true);
   const [logForms, setLogForms] = useState({});
   const [savingLog, setSavingLog] = useState(null);
-  const [diaryExpanded, setDiaryExpanded] = useState({}); // por projectId: true = mostrar formulário
+  const [diaryExpanded, setDiaryExpanded] = useState({});
+  const [exportingPdf, setExportingPdf] = useState(null);
 
   useEffect(() => {
     const id = searchParams.get('project');
@@ -37,19 +43,25 @@ function StatusReportContent() {
     setLoading(true);
     (async () => {
       try {
-        const [pRes, eRes, fRes, logsRes, allocRes] = await Promise.all([
+        const [pRes, eRes, fRes, logsRes, allocRes, fbRes, constRes, histRes] = await Promise.all([
           fetch('/api/projects'),
           fetch('/api/epics'),
           fetch('/api/features'),
           fetch('/api/project-logs'),
           fetch('/api/allocations'),
+          fetch('/api/feedbacks'),
+          fetch('/api/constatacoes'),
+          fetch('/api/feature-history'),
         ]);
-        const [p, e, f, logs, alloc] = await Promise.all([
+        const [p, e, f, logs, alloc, fb, consta, hist] = await Promise.all([
           pRes.json(),
           eRes.json(),
           fRes.json(),
           logsRes.json(),
           allocRes.json(),
+          fbRes.json(),
+          constRes.json(),
+          histRes.json(),
         ]);
         if (!cancelled) {
           setProjects(p);
@@ -57,6 +69,9 @@ function StatusReportContent() {
           setFeatures(f);
           setProjectLogs(logs);
           setAllocations(alloc);
+          setFeedbacks(fb || []);
+          setConstatacoes(consta || []);
+          setFeatureHistory(hist || []);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -97,6 +112,8 @@ function StatusReportContent() {
         date: new Date().toISOString().slice(0, 10),
         source: 'status_report',
         content: '',
+        nextSteps: '',
+        decisions: '',
       }
     );
   }
@@ -117,18 +134,97 @@ function StatusReportContent() {
         date: form.date,
         source: form.source,
         content: form.content.trim(),
+        nextSteps: form.nextSteps?.trim() || undefined,
+        decisions: form.decisions?.trim() || undefined,
       }),
     });
     const res = await fetch('/api/project-logs');
     const logs = await res.json();
     setProjectLogs(logs);
-    setLogForm(projectId, { date: new Date().toISOString().slice(0, 10), source: 'status_report', content: '' });
+    setLogForm(projectId, { date: new Date().toISOString().slice(0, 10), source: 'status_report', content: '', nextSteps: '', decisions: '' });
     setSavingLog(null);
     setDiaryExpanded((prev) => ({ ...prev, [projectId]: false })); // recolhe após incluir (tela para cliente)
   }
 
   function logsForProject(projectId) {
-    return projectLogs.filter((l) => l.projectId === projectId);
+    return projectLogs.filter((l) => (typeof l.projectId === 'object' ? l.projectId?._id : l.projectId) === projectId);
+  }
+
+  function lastLogDateForProject(projectId) {
+    const list = logsForProject(projectId);
+    if (!list.length) return null;
+    const dates = list.map((l) => (l.date && new Date(l.date)) || (l.createdAt && new Date(l.createdAt))).filter(Boolean);
+    return dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null;
+  }
+
+  function projectHealthIndicator(p) {
+    const m = metrics(p._id);
+    const lastLog = lastLogDateForProject(p._id);
+    return getProjectHealth(p, { estimated: m.totalEstimated, logged: m.totalLogged, blocked: featuresForProject(p._id).filter((f) => f.status === 'block_internal' || f.status === 'block_client').length }, lastLog);
+  }
+
+  function unifiedTimeline(projectId) {
+    const pid = (id) => id && (typeof id === 'object' ? id._id : id);
+    const items = [];
+    logsForProject(projectId).forEach((log) => {
+      items.push({
+        date: log.date || log.createdAt,
+        type: 'log',
+        label: LOG_SOURCE_LABELS[log.source] || log.source,
+        detail: log.content,
+        id: log._id,
+      });
+    });
+    feedbacks.filter((fb) => pid(fb.projectId) === projectId).forEach((fb) => {
+      items.push({
+        date: fb.date || fb.createdAt,
+        type: 'feedback',
+        label: 'Feedback',
+        detail: fb.title ? `${fb.title}: ${fb.description}` : fb.description,
+        id: fb._id,
+      });
+    });
+    constatacoes.filter((c) => pid(c.projectId) === projectId).forEach((c) => {
+      items.push({
+        date: c.date || c.createdAt,
+        type: 'constatacao',
+        label: c.type === 'risk' ? 'Risco' : c.type === 'opportunity' ? 'Oportunidade' : 'Observação',
+        detail: c.title ? `${c.title}: ${c.description}` : c.description,
+        id: c._id,
+      });
+    });
+    const featureIds = new Set(featuresForProject(projectId).map((f) => f._id));
+    featureHistory.filter((h) => featureIds.has(pid(h.featureId))).forEach((h) => {
+      if (h.action === 'status_change' && h.details) {
+        items.push({
+          date: h.createdAt,
+          type: 'status_change',
+          label: 'Mudança de status',
+          detail: h.details,
+          id: h._id,
+        });
+      }
+    });
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return items;
+  }
+
+  async function exportProjectPdf(projectId) {
+    setExportingPdf(projectId);
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      const el = document.getElementById(`report-card-${projectId}`);
+      if (!el) return;
+      await html2pdf().set({
+        margin: 10,
+        filename: `status-report-${projectId}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(el).save();
+    } finally {
+      setExportingPdf(null);
+    }
   }
 
   function logSourceBadge(source) {
@@ -198,7 +294,7 @@ function StatusReportContent() {
           hasActiveFilters={selectedProject !== ''}
           onClear={() => setSelectedProject('')}
         >
-          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+          <select className="filter-select" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             <option value="">Todos os projetos</option>
             {projects.map(p => <option key={p._id} value={p._id}>{p.name} ({clientName(p)})</option>)}
           </select>
@@ -212,18 +308,30 @@ function StatusReportContent() {
         filteredProjects.length === 0 ? <div className="card"><p>Nenhum projeto encontrado.</p></div> :
         filteredProjects.map(p => {
           const m = metrics(p._id);
+          const timeline = unifiedTimeline(p._id);
           return (
-            <div className="card" key={p._id} style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div id={`report-card-${p._id}`} className="card" key={p._id} style={{ marginBottom: 16, borderLeft: `4px solid ${projectHealthIndicator(p) === 'red' ? 'var(--danger)' : projectHealthIndicator(p) === 'yellow' ? 'var(--warning)' : 'var(--success)'}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                  <h3 style={{ fontSize: 20 }}>{p.name}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className={`health-dot ${projectHealthIndicator(p)}`} />
+                    <h3 style={{ fontSize: 20, margin: 0 }}>{p.name}</h3>
+                  </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Cliente: <strong>{clientName(p)}</strong></p>
                   {p.description && <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>{p.description}</p>}
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => exportProjectPdf(p._id)}
+                    disabled={exportingPdf === p._id}
+                  >
+                    {exportingPdf === p._id ? 'Exportando...' : 'Exportar PDF'}
+                  </button>
                   {statusBadge(p.status)}
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>Início: {p.startDate ? new Date(p.startDate).toLocaleDateString() : '-'}</p>
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Fim prev.: {p.endDate ? new Date(p.endDate).toLocaleDateString() : '-'}</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Início: {p.startDate ? new Date(p.startDate).toLocaleDateString() : '-'}</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Fim prev.: {p.endDate ? new Date(p.endDate).toLocaleDateString() : '-'}</p>
                 </div>
               </div>
 
@@ -379,6 +487,26 @@ function StatusReportContent() {
                     ))}
                   </ul>
                 )}
+                {timeline.length > 0 && (
+                  <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+                    <h4 style={{ fontSize: 16, margin: '0 0 12px', color: 'var(--text-muted)' }}>Linha do tempo unificada</h4>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                      {timeline.slice(0, 30).map((item) => (
+                        <li key={item.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 14 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 13 }}>
+                              {item.date ? new Date(item.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                            </span>
+                            <span className="badge badge-active" style={{ fontSize: 11 }}>{item.label}</span>
+                          </div>
+                          <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{item.detail}</div>
+                        </li>
+                      ))}
+                    </ul>
+                    {timeline.length > 30 && <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>+ {timeline.length - 30} itens.</p>}
+                  </div>
+                )}
+
                 {diaryExpanded[p._id] && (
                   <div className="card" style={{ marginTop: 16, padding: 16, background: 'var(--bg)' }}>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Nova anotação (diário de bordo)</p>
@@ -400,6 +528,7 @@ function StatusReportContent() {
                           <option value="status_report">Reunião de Status Report</option>
                           <option value="meeting">Reunião</option>
                           <option value="email">E-mail</option>
+                          <option value="other">Outro</option>
                         </select>
                       </div>
                     </div>
@@ -412,6 +541,28 @@ function StatusReportContent() {
                         placeholder="Ex: Cliente aprovou escopo da fase 2. Próxima reunião em 15/03."
                       />
                     </div>
+                    {(getLogForm(p._id).source === 'status_report' || getLogForm(p._id).source === 'meeting') && (
+                      <>
+                        <div className="form-group" style={{ marginBottom: 12 }}>
+                          <label style={{ fontSize: 12 }}>Próximos passos</label>
+                          <textarea
+                            rows={2}
+                            value={getLogForm(p._id).nextSteps || ''}
+                            onChange={(e) => setLogForm(p._id, { nextSteps: e.target.value })}
+                            placeholder="Próximas ações definidas..."
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 12 }}>
+                          <label style={{ fontSize: 12 }}>Decisões tomadas</label>
+                          <textarea
+                            rows={2}
+                            value={getLogForm(p._id).decisions || ''}
+                            onChange={(e) => setLogForm(p._id, { decisions: e.target.value })}
+                            placeholder="Decisões registradas..."
+                          />
+                        </div>
+                      </>
+                    )}
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
                         className="btn btn-primary"

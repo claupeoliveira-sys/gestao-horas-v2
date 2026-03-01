@@ -2,10 +2,10 @@ import connectDB from '@/lib/mongodb';
 import Person from '@/lib/models/Person';
 import { NextResponse } from 'next/server';
 import { compare, hash } from 'bcryptjs';
-import { getSessionFromRequest } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req) {
-  const session = getSessionFromRequest(req);
+  const session = await getSession();
   if (!session?.personId) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }

@@ -14,6 +14,14 @@ export async function GET(req) {
 export async function POST(req) {
   await connectDB();
   const body = await req.json();
-  const log = await ProjectLog.create(body);
+  const payload = {
+    projectId: body.projectId,
+    date: body.date,
+    source: body.source,
+    content: body.content,
+    nextSteps: body.nextSteps || undefined,
+    decisions: body.decisions || undefined,
+  };
+  const log = await ProjectLog.create(payload);
   return NextResponse.json(log, { status: 201 });
 }

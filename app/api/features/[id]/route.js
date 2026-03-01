@@ -9,8 +9,24 @@ export async function PUT(req, { params }) {
   const previous = await Feature.findById(params.id).lean();
   if (!previous) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
 
-  const feature = await Feature.findByIdAndUpdate(params.id, body, { new: true })
+  const update = { ...body };
+  if (body.status !== undefined && body.order === undefined) {
+    const targetStatus = body.status;
+    const projectId = previous.projectId?.toString?.() || previous.projectId;
+    const maxOrder = await Feature.findOne({ projectId, status: targetStatus }).sort({ order: -1 }).select('order').lean();
+    update.order = (maxOrder?.order ?? -1) + 1;
+  }
+  const feature = await Feature.findByIdAndUpdate(params.id, update, { new: true })
     .populate('analystIds', 'name email');
+
+  if ((body.order !== undefined || body.status !== undefined) && feature) {
+    const projectId = feature.projectId?.toString?.() || feature.projectId;
+    const status = feature.status || 'backlog';
+    const sameColumn = await Feature.find({ projectId, status }).sort({ order: 1, createdAt: 1 }).select('_id order').lean();
+    sameColumn.forEach((f, idx) => {
+      if (f.order !== idx) Feature.findByIdAndUpdate(f._id, { order: idx }).exec();
+    });
+  }
 
   const historyEntries = [];
   if (body.status !== undefined && String(previous.status) !== String(body.status)) {

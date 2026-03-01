@@ -18,12 +18,9 @@ export default function BuildInfo() {
   const dateStr = date ? date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
   return (
-    <div
+    <span
       className="build-info"
       style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
         fontSize: 11,
         color: 'var(--text-muted)',
         opacity: 0.85,
@@ -32,6 +29,6 @@ export default function BuildInfo() {
       title={`Versão ${info.version} · Compilado em ${dateStr}`}
     >
       v{info.version} · {dateStr}
-    </div>
+    </span>
   );
 }

@@ -171,13 +171,13 @@ export default function ProjectsPage() {
             hasActiveFilters={filterClient !== '' || filterStatus !== 'active'}
             onClear={() => { setFilterClient(''); setFilterStatus('active'); }}
           >
-            <select value={filterClient} onChange={e => setFilterClient(e.target.value)}>
+            <select className="filter-select" value={filterClient} onChange={e => setFilterClient(e.target.value)}>
               <option value="">Todos os clientes</option>
               {clients.map((c) => (
                 <option key={c._id} value={c._id}>{c.name}</option>
               ))}
             </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="active">Ativos</option>
               <option value="inactive">Inativos</option>
               <option value="all">Todos</option>

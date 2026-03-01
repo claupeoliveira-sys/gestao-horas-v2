@@ -292,7 +292,7 @@ export default function AlocacoesPage() {
             hasActiveFilters={filterPerson !== '' || filterProject !== ''}
             onClear={() => { setFilterPerson(''); setFilterProject(''); }}
           >
-            <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)}>
+            <select className="filter-select" value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)}>
               <option value="">Todos colaboradores</option>
               {people.map((p) => (
                 <option key={p._id} value={p._id}>
@@ -300,7 +300,7 @@ export default function AlocacoesPage() {
                 </option>
               ))}
             </select>
-            <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
+            <select className="filter-select" value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
               <option value="">Todos projetos</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import BuildInfo from './BuildInfo';
+import ThemeToggle from './ThemeToggle';
 
 const NAV_ICONS = {
   home: '🏠',
@@ -32,6 +33,7 @@ export default function AppShell({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [alertCount, setAlertCount] = useState(0);
 
   const isPublic = pathname === '/login' || pathname === '/alterar-senha';
 
@@ -60,6 +62,14 @@ export default function AppShell({ children }) {
     if (adminOnlyPaths.includes(pathname)) router.replace('/');
   }, [user, pathname, router]);
 
+  useEffect(() => {
+    if (isPublic || !user) return;
+    fetch('/api/alerts/summary')
+      .then((r) => r.json())
+      .then((data) => setAlertCount(data.total || 0))
+      .catch(() => setAlertCount(0));
+  }, [isPublic, user]);
+
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     router.replace('/login');
@@ -87,6 +97,7 @@ export default function AppShell({ children }) {
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <Link href="/" className="nav-link">
             <span className="nav-icon">{NAV_ICONS.home}</span> Início
+            {alertCount > 0 && <span className="nav-alert-badge" title="Projetos com alertas" />}
           </Link>
           {isAdmin && (
             <>
@@ -96,6 +107,7 @@ export default function AppShell({ children }) {
               </Link>
               <Link href="/projects" className="nav-link">
                 <span className="nav-icon">{NAV_ICONS.projetos}</span> Projetos
+                {alertCount > 0 && <span className="nav-alert-badge" title="Projetos com alertas" />}
               </Link>
               <Link href="/epics" className="nav-link">
                 <span className="nav-icon">{NAV_ICONS.epicos}</span> Épicos
@@ -108,9 +120,14 @@ export default function AppShell({ children }) {
           <div className="nav-group-label">Operação</div>
           <Link href="/kanban" className="nav-link">
             <span className="nav-icon">{NAV_ICONS.kanban}</span> Kanban
+            {alertCount > 0 && <span className="nav-alert-badge" title="Projetos com alertas" />}
           </Link>
           <Link href="/status-report" className="nav-link">
             <span className="nav-icon">{NAV_ICONS.status}</span> Status Report
+            {alertCount > 0 && <span className="nav-alert-badge" title="Projetos com alertas" />}
+          </Link>
+          <Link href="/diario-bordo" className="nav-link">
+            <span className="nav-icon">📓</span> Diário de Bordo
           </Link>
           <Link href="/trabalho-analista" className="nav-link">
             <span className="nav-icon">{NAV_ICONS.tarefas}</span> Tarefas por pessoa
@@ -149,7 +166,10 @@ export default function AppShell({ children }) {
       </aside>
       <main className="main-content">
         <div className="page-content" style={{ paddingTop: 6, paddingRight: 150 }}>
-          <BuildInfo />
+          <div className="top-bar-actions" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <ThemeToggle />
+            <BuildInfo />
+          </div>
           {children}
         </div>
       </main>

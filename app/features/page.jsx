@@ -194,7 +194,7 @@ export default function FeaturesPage() {
             hasActiveFilters={selectedProject !== ''}
             onClear={() => setSelectedProject('')}
           >
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+            <select className="filter-select" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
               <option value="">Selecione um projeto...</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>{p.name} ({(typeof p.clientId === 'object' && p.clientId?.name) || p.client || '—'})</option>

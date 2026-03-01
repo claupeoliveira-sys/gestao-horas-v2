@@ -127,7 +127,7 @@ export default function KanbanPage() {
           hasActiveFilters={selectedProject !== ''}
           onClear={() => setSelectedProject('')}
         >
-          <select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
+          <select className="filter-select" value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
             <option value="">Todos os projetos</option>
             {projects.map((p) => (
               <option key={p._id} value={p._id}>
