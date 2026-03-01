@@ -1,10 +1,16 @@
 import connectDB from '@/lib/mongodb';
 import Project from '@/lib/models/Project';
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 
 export async function GET() {
   await connectDB();
-  const projects = await Project.find()
+  const session = await getSession();
+  const filter = {};
+  if (session?.profileRole === 'user' && session?.personId) {
+    filter.memberIds = session.personId;
+  }
+  const projects = await Project.find(filter)
     .populate('memberIds', 'name email role')
     .populate('clientId', 'name')
     .sort({ createdAt: -1 });

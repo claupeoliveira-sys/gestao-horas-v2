@@ -30,6 +30,7 @@ export default function TrabalhoAnalistaPage() {
   const [epics, setEpics] = useState([]);
   const [selectedAnalyst, setSelectedAnalyst] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(true);
 
   useEffect(() => {
     if (pathname !== '/trabalho-analista') return;
@@ -37,23 +38,31 @@ export default function TrabalhoAnalistaPage() {
     setLoading(true);
     (async () => {
       try {
-        const [pRes, fRes, projRes, eRes] = await Promise.all([
+        const [sessionRes, pRes, fRes, projRes, eRes] = await Promise.all([
+          fetch('/api/auth/session'),
           fetch('/api/people'),
           fetch('/api/features'),
           fetch('/api/projects'),
           fetch('/api/epics'),
         ]);
-        const [peopleList, f, proj, e] = await Promise.all([
+        const [sessionData, peopleList, f, proj, e] = await Promise.all([
+          sessionRes.json(),
           pRes.json(),
           fRes.json(),
           projRes.json(),
           eRes.json(),
         ]);
         if (!cancelled) {
-          setPeople(peopleList.filter((x) => x.active !== false));
+          const admin = sessionData?.user?.profileRole === 'admin';
+          setIsAdmin(admin);
+          const peopleFiltered = peopleList.filter((x) => x.active !== false);
+          setPeople(peopleFiltered);
           setFeatures(f);
           setProjects(proj);
           setEpics(e);
+          if (!admin && sessionData?.user?.personId) {
+            setSelectedAnalyst(sessionData.user.personId);
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -99,16 +108,20 @@ export default function TrabalhoAnalistaPage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 16 }}>
           <label style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>Pessoa:</label>
-          <select
-            value={selectedAnalyst}
-            onChange={(e) => setSelectedAnalyst(e.target.value)}
-            style={{ minWidth: 240 }}
-          >
-            <option value="">Selecione uma pessoa...</option>
-            {people.map((p) => (
-              <option key={p._id} value={p._id}>{p.name}</option>
-            ))}
-          </select>
+          {isAdmin ? (
+            <select
+              value={selectedAnalyst}
+              onChange={(e) => setSelectedAnalyst(e.target.value)}
+              style={{ minWidth: 240 }}
+            >
+              <option value="">Selecione uma pessoa...</option>
+              {people.map((p) => (
+                <option key={p._id} value={p._id}>{p.name}</option>
+              ))}
+            </select>
+          ) : (
+            <span style={{ fontWeight: 500 }}>Minhas tarefas</span>
+          )}
         </div>
 
         {loading ? (

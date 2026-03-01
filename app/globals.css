@@ -63,6 +63,12 @@ body {
   color: #f1f5f9;
   padding-left: 18px;
 }
+.nav-icon {
+  display: inline-block;
+  width: 1.4em;
+  text-align: center;
+  margin-right: 6px;
+}
 
 .nav-group-label {
   font-size: 11px;
