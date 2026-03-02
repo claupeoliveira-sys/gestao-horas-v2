@@ -156,6 +156,24 @@ export default function FeaturesPage() {
     loadFeatures();
   }
 
+  async function handleConfirmRemove() {
+    if (!confirmItemId) return;
+    setSavingEdit(true);
+    try {
+      await fetch(`/api/features/${confirmItemId}`, { method: 'DELETE' });
+      setConfirmOpen(false);
+      setConfirmItemId(null);
+      setConfirmItemName('');
+      if (editingFeature?._id === confirmItemId) {
+        setEditingFeature(null);
+        setFeatureHistory([]);
+      }
+      loadFeatures();
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   function statusLabel(s) {
     return {
       not_prioritized: 'Não priorizado',
