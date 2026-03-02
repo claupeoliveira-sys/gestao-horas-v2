@@ -1,0 +1,100 @@
+================================================================================
+RELATÓRIO DE ANÁLISE DE ERROS - app/ e lib/ (*.js e *.jsx)
+================================================================================
+Gerado com base na análise de todos os arquivos .js e .jsx nas pastas app/ e lib/.
+Critérios: funções não declaradas/importadas, estados referenciados não declarados,
+imports duplicados, variáveis em dependências de useEffect não declaradas.
+================================================================================
+
+--------------------------------------------------------------------------------
+1. FUNÇÕES CHAMADAS NO JSX OU NO CÓDIGO QUE NÃO ESTÃO DECLARADAS NO MESMO
+   ARQUIVO NEM VÊM DE NENHUM IMPORT
+--------------------------------------------------------------------------------
+
+Nenhum problema encontrado.
+
+(Nota: A função handleConfirmRemove na página de Features foi previamente
+corrigida e está declarada no componente. As demais páginas que usam
+ConfirmModal possuem handleConfirmRemove ou handleConfirmDelete declarados.)
+
+--------------------------------------------------------------------------------
+2. ESTADOS (useState) REFERENCIADOS NO CÓDIGO MAS NÃO DECLARADOS NO COMPONENTE
+--------------------------------------------------------------------------------
+
+Nenhum problema encontrado.
+
+(Nota: Em app/components/NotificationBell.jsx o estado é declarado como
+[readIds, setReadIdsState]; readIds é usado corretamente como valor do estado.
+A função setReadIds é uma função auxiliar separada que persiste no localStorage,
+não o setter do estado.)
+
+--------------------------------------------------------------------------------
+3. IMPORTS DUPLICADOS NO MESMO ARQUIVO
+--------------------------------------------------------------------------------
+
+Nenhum problema encontrado.
+
+(Nota: Nenhum arquivo importa o mesmo módulo duas vezes. Arquivos com múltiplas
+linhas de import importam de módulos diferentes.)
+
+--------------------------------------------------------------------------------
+4. VARIÁVEIS USADAS EM DEPENDÊNCIAS DE useEffect QUE NÃO ESTÃO DECLARADAS
+   NO ESCOPO DO COMPONENTE
+--------------------------------------------------------------------------------
+
+Nenhum problema encontrado.
+
+(Nota: Foram verificados os arrays de dependência de todos os useEffect nos
+arquivos analisados. As variáveis utilizadas (pathname, refreshKey, selectedProject,
+filterPerson, filterProject, loading, router, user, isPublic, open, searchParams,
+editingFeature, filterType, filterFollowUp, value, delayMs, onVisible, enabled)
+provenientes de useState, useRouter, usePathname, useSearchParams ou parâmetros
+de hooks estão todas declaradas no escopo do respectivo componente.)
+
+================================================================================
+ARQUIVOS ANALISADOS
+================================================================================
+
+App (57 arquivos):
+- app/page.jsx
+- app/layout.jsx
+- app/login/page.jsx
+- app/alterar-senha/page.jsx
+- app/perfil/page.jsx
+- app/features/page.jsx
+- app/epics/page.jsx
+- app/projects/page.jsx
+- app/teams/page.jsx
+- app/clients/page.jsx
+- app/people/page.jsx
+- app/alocacoes/page.jsx
+- app/constatacoes/page.jsx
+- app/acompanhamento/page.jsx
+- app/kanban/page.jsx
+- app/status-report/page.jsx
+- app/diario-bordo/page.jsx
+- app/painel-analistas/page.jsx
+- app/trabalho-analista/page.jsx
+- app/components/AppShell.jsx
+- app/components/ConfirmModal.jsx
+- app/components/FilterBox.jsx
+- app/components/LoadingOverlay.jsx
+- app/components/LoadingSpinner.jsx
+- app/components/BuildInfo.jsx
+- app/components/ThemeToggle.jsx
+- app/components/NotificationBell.jsx
+- app/hooks/useDebouncedValue.js
+- app/hooks/useVisibilityRefresh.js
+- app/api/**/*.js (rotas de API)
+
+Lib (16 arquivos):
+- lib/auth.js
+- lib/mongodb.js
+- lib/safeJson.js
+- lib/buildAlerts.js
+- lib/projectHealth.js
+- lib/models/*.js
+
+================================================================================
+FIM DO RELATÓRIO
+================================================================================

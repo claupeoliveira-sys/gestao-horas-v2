@@ -156,6 +156,14 @@ export default function Home() {
         Visão geral da saúde dos projetos, horas e alertas.
       </p>
 
+      <div className="card" style={{ marginBottom: 28, background: 'var(--bg)', borderLeft: '4px solid var(--primary)' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px', color: 'var(--text)' }}>Bem-vindo ao sistema</h3>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          Este é o painel de gestão de horas e projetos. Use o menu para acessar Projetos, Features, Times, Clientes e Pessoas.
+          Se você é novo por aqui, comece cadastrando clientes e projetos; o resumo e os alertas aparecerão neste dashboard.
+        </p>
+      </div>
+
       {projects.length === 0 ? (
         <div className="card">
           <p style={{ color: 'var(--text-muted)' }}>Nenhum projeto cadastrado. Use o menu para começar.</p>
